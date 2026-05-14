@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EVE PI P3 Factory Manager</title>
+  <link rel="stylesheet" href="./src/styles.css?v=0.3.1" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">EVE Online PI Jita market planner</p>
+        <h1>P3 Factory Manager</h1>
+        <span id="appVersion" class="version-pill">v0.3.1</span>
+      </div>
+      <div class="topbar-actions">
+        <button id="refreshPricesButton" class="primary-button" type="button">Refresh Jita Prices</button>
+        <button id="copyButton" class="ghost-button" type="button">Copy Template</button>
+      </div>
+    </header>
+
+    <section class="command-band" aria-label="Selected factory plan">
+      <div class="selected-output">
+        <span class="label">Selected schematic</span>
+        <strong id="selectedRecipeName">Robotics</strong>
+        <span id="selectedRecipeInputs">Mechanical Parts + Consumer Electronics</span>
+      </div>
+      <div class="metric-strip">
+        <div>
+          <span class="label">Cycle cost</span>
+          <strong id="cycleCost">-</strong>
+        </div>
+        <div>
+          <span class="label">Cycle revenue</span>
+          <strong id="cycleRevenue">-</strong>
+        </div>
+        <div>
+          <span class="label">Profit / cycle</span>
+          <strong id="cycleProfit">-</strong>
+        </div>
+        <div>
+          <span class="label">ROI</span>
+          <strong id="cycleRoi">-</strong>
+        </div>
+      </div>
+    </section>
+
+    <div class="workspace">
+      <section class="schematic-panel" aria-label="P3 schematic selection">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Build decision</p>
+            <h2>Pick the P3 schematic</h2>
+          </div>
+          <select id="sortSelect" aria-label="Sort schematics">
+            <option value="profit">Sort by profit</option>
+            <option value="roi">Sort by ROI</option>
+            <option value="name">Sort by name</option>
+          </select>
+        </div>
+        <div id="recipeGrid" class="recipe-grid"></div>
+      </section>
+
+      <aside class="inspector" aria-label="Factory details">
+        <section class="panel-block">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Market basis</p>
+              <h2>Jita pricing</h2>
+            </div>
+          </div>
+          <div class="field-grid">
+            <label>
+              Buy P2 inputs from
+              <select id="inputPriceSide">
+                <option value="sell">Lowest sell order</option>
+                <option value="buy">Highest buy order</option>
+              </select>
+            </label>
+            <label>
+              Value P3 output at
+              <select id="outputPriceSide">
+                <option value="buy">Highest buy order</option>
+                <option value="sell">Lowest sell order</option>
+              </select>
+            </label>
+          </div>
+          <div id="marketStatus" class="status warn">Prices have not been refreshed yet.</div>
+          <div id="priceLines" class="price-lines"></div>
+        </section>
+
+        <section class="panel-block">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Template output</p>
+              <h2>Robotics shell rewrite</h2>
+            </div>
+          </div>
+          <div id="templateStatus" class="status good">Using the bundled Robotics factory template.</div>
+          <div class="template-actions">
+            <button id="generateButton" class="primary-button" type="button">Generate Selected Template</button>
+            <button id="resetTemplateButton" class="ghost-button" type="button">Reset Shell</button>
+          </div>
+          <textarea id="outputTemplate" spellcheck="false" aria-label="Generated template JSON" placeholder="Generated template JSON appears here."></textarea>
+        </section>
+
+        <details class="advanced-panel">
+          <summary>Advanced template source</summary>
+          <p>Paste another known-good two-input P3 factory template here if you want to reuse its layout.</p>
+          <textarea id="sourceTemplate" spellcheck="false" aria-label="Source template JSON"></textarea>
+          <button id="useCustomTemplateButton" class="ghost-button" type="button">Use Custom Shell</button>
+        </details>
+      </aside>
+    </div>
+  </main>
+
+  <script type="module" src="./src/js/main.js?v=0.3.1"></script>
+</body>
+</html>
