@@ -99,7 +99,6 @@ function bindEvents() {
       setActivePlanetDraft(planetId);
       persistState();
       render();
-      updateGeneratedTemplate();
       return;
     }
 
@@ -112,6 +111,7 @@ function bindEvents() {
     if (!planets.length) {
       planets.push(defaultPlanet("Planet 1"));
     }
+    setActivePlanetDraft(planets[0].id);
     persistState();
     render();
   });
@@ -376,7 +376,13 @@ function planetSummary(planet, settings) {
   const factories = clampInteger(planet.factories, 1, 100);
   const cyclesPerFactory = clampInteger(planet.cycles, 1, 10000);
   const totalCycles = planetTotalCycles(planet);
-  const economics = evaluateRecipe(recipe, prices, { ...settings, cycles: totalCycles });
+  const economics = evaluateRecipe(recipe, prices, {
+    ...settings,
+    cycles: totalCycles,
+    inputAUnitPrice: planet.inputAUnitPrice,
+    inputBUnitPrice: planet.inputBUnitPrice,
+    outputUnitPrice: planet.outputUnitPrice
+  });
   return {
     planet,
     recipe,
@@ -427,6 +433,18 @@ function renderPlanetRow(row, isActiveDraft = false) {
           <label>
             Cycles per facility
             <input data-planet-cycles type="number" min="1" max="10000" step="1" value="${cyclesPerFactory}" />
+          </label>
+          <label>
+            ${escapeHtml(recipe.inputAName)} price
+            <input data-planet-input-a-price type="number" min="0" step="0.01" value="${formatOverrideValue(planet.inputAUnitPrice)}" placeholder="Market default" />
+          </label>
+          <label>
+            ${escapeHtml(recipe.inputBName)} price
+            <input data-planet-input-b-price type="number" min="0" step="0.01" value="${formatOverrideValue(planet.inputBUnitPrice)}" placeholder="Market default" />
+          </label>
+          <label>
+            ${escapeHtml(recipe.name)} price
+            <input data-planet-output-price type="number" min="0" step="0.01" value="${formatOverrideValue(planet.outputUnitPrice)}" placeholder="Market default" />
           </label>
         </div>
       </div>
@@ -550,7 +568,10 @@ function normalizePlanets(value) {
     recipeId: recipeById(planet.recipeId).id,
     factories: clampInteger(planet.factories, 1, 100),
     cycles: clampInteger(planet.cycles, 1, 10000),
-    isOpen: planet.isOpen === true
+    isOpen: planet.isOpen === true,
+    inputAUnitPrice: normalizeOverridePrice(planet.inputAUnitPrice),
+    inputBUnitPrice: normalizeOverridePrice(planet.inputBUnitPrice),
+    outputUnitPrice: normalizeOverridePrice(planet.outputUnitPrice)
   }));
 }
 
@@ -561,7 +582,10 @@ function defaultPlanet(name) {
     recipeId: selectedRecipeId,
     factories: activeFactoryCount(),
     cycles: currentCycleCount(),
-    isOpen: false
+    isOpen: false,
+    inputAUnitPrice: null,
+    inputBUnitPrice: null,
+    outputUnitPrice: null
   };
 }
 
@@ -587,6 +611,7 @@ function setActivePlanetDraft(planetId) {
   setCycleCount(clampInteger(planet.cycles, 1, 720));
   planet.isOpen = true;
   forceActivePlanetOpen = true;
+  updateGeneratedTemplate();
 }
 
 function updatePlanetFromControl(control) {
@@ -603,6 +628,12 @@ function updatePlanetFromControl(control) {
     planet.factories = clampInteger(control.value, 1, 100);
   } else if (control.matches("[data-planet-cycles]")) {
     planet.cycles = clampInteger(control.value, 1, 10000);
+  } else if (control.matches("[data-planet-input-a-price]")) {
+    planet.inputAUnitPrice = normalizeOverridePrice(control.value);
+  } else if (control.matches("[data-planet-input-b-price]")) {
+    planet.inputBUnitPrice = normalizeOverridePrice(control.value);
+  } else if (control.matches("[data-planet-output-price]")) {
+    planet.outputUnitPrice = normalizeOverridePrice(control.value);
   }
 }
 
@@ -736,4 +767,15 @@ function missingDepthText(economics) {
   ].some((depth) => depth && depth.filledQuantity > 0);
 
   return missing ? "Not enough visible order depth for this run." : "Refresh prices to rank this schematic.";
+}
+
+function normalizeOverridePrice(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
+function formatOverrideValue(value) {
+  return Number.isFinite(value) ? String(value) : "";
 }

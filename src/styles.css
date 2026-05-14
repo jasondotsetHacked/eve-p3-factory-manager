@@ -601,6 +601,7 @@ label {
 
 .planet-summary-actions {
   display: inline-flex;
+  flex-wrap: nowrap;
   gap: 8px;
 }
 
@@ -615,7 +616,7 @@ label {
 
 .planet-controls {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) repeat(2, minmax(120px, 0.8fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 10px;
 }
 
