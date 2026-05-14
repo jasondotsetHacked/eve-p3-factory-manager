@@ -583,7 +583,7 @@ function withErrorHandling(action) {
 }
 
 function setCycleCount(value) {
-  const cycles = Math.min(Math.max(Number.parseInt(value, 10) || 1, 1), 200);
+  const cycles = Math.min(Math.max(Number.parseInt(value, 10) || 1, 1), 720);
   elements.cycleCount.value = String(cycles);
   elements.cycleCountNumber.value = String(cycles);
 }

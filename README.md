@@ -55,7 +55,7 @@ The bundled template is a Robotics factory shell. The app detects the Robotics i
 
 ## Market Depth Pricing
 
-Each Advanced Industry Facility cycle consumes 10 units of each P2 input and produces 3 units of P3 output. The cycle slider is cycles per facility. For the bundled template, the app multiplies that by the 16 Advanced Industry Facilities in the layout before pricing the selected schematic.
+Each Advanced Industry Facility cycle consumes 10 units of each P2 input and produces 3 units of P3 output. The cycle slider is cycles per facility and supports up to 720 cycles, equal to 30 days at one hour per cycle. For the bundled template, the app multiplies that by the 16 Advanced Industry Facilities in the layout before pricing the selected schematic.
 
 For example, 24 cycles per facility on the bundled 16-facility shell prices 3,840 units of each P2 input and 1,152 units of P3 output:
 
