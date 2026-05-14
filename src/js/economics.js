@@ -28,9 +28,9 @@ export function evaluateRecipe(recipe, prices, settings) {
   const cycles = clampCycleCount(settings.cycles);
   const inputQuantity = cycles * 10;
   const outputQuantity = cycles * 3;
-  const inputA = depthPrice(prices[recipe.inputATypeId], settings.inputSide, inputQuantity);
-  const inputB = depthPrice(prices[recipe.inputBTypeId], settings.inputSide, inputQuantity);
-  const output = depthPrice(prices[recipe.outputTypeId], settings.outputSide, outputQuantity);
+  const inputA = depthPrice(prices[recipe.inputATypeId], settings.inputSide, inputQuantity, settings.inputAUnitPrice);
+  const inputB = depthPrice(prices[recipe.inputBTypeId], settings.inputSide, inputQuantity, settings.inputBUnitPrice);
+  const output = depthPrice(prices[recipe.outputTypeId], settings.outputSide, outputQuantity, settings.outputUnitPrice);
   const outputDemand = depthPrice(prices[recipe.outputTypeId], "buy", outputQuantity);
   const allDepthFilled = [inputA, inputB, output].every((result) => result.isComplete);
 
@@ -93,7 +93,7 @@ async function fetchJitaPrice(typeId) {
   };
 }
 
-function depthPrice(price, side, quantity) {
+function depthPrice(price, side, quantity, overrideUnitPrice = null) {
   const emptyResult = {
     averagePrice: null,
     totalValue: null,
@@ -102,8 +102,23 @@ function depthPrice(price, side, quantity) {
     availableQuantity: 0,
     bestPrice: null,
     worstPrice: null,
-    isComplete: false
+    isComplete: false,
+    isOverride: false
   };
+
+  if (Number.isFinite(overrideUnitPrice) && overrideUnitPrice >= 0) {
+    return {
+      averagePrice: overrideUnitPrice,
+      totalValue: overrideUnitPrice * quantity,
+      requestedQuantity: quantity,
+      filledQuantity: quantity,
+      availableQuantity: quantity,
+      bestPrice: overrideUnitPrice,
+      worstPrice: overrideUnitPrice,
+      isComplete: true,
+      isOverride: true
+    };
+  }
 
   if (!price || !Number.isFinite(quantity) || quantity <= 0) {
     return emptyResult;

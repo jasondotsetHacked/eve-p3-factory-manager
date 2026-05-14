@@ -83,19 +83,36 @@ function bindEvents() {
   elements.addPlanetButton.addEventListener("click", () => {
     syncPlanetOpenStates();
     planets.unshift(defaultPlanet(`Planet ${planets.length + 1}`));
+    setActivePlanetDraft(planets[0].id, { open: true });
     persistState();
     render();
   });
   elements.copyBuyListButton.addEventListener("click", withErrorHandling(() => copyPlannerList("buy")));
   elements.copySellListButton.addEventListener("click", withErrorHandling(() => copyPlannerList("sell")));
   elements.planetList.addEventListener("click", (event) => {
+    const editButton = event.target.closest("[data-edit-planet]");
+    if (editButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const card = editButton.closest("[data-planet-id]");
+      const planetId = card?.dataset.planetId;
+      if (!planetId) return;
+      setActivePlanetDraft(planetId);
+      persistState();
+      render();
+      return;
+    }
+
     const removeButton = event.target.closest("[data-remove-planet]");
     if (!removeButton) return;
+    event.preventDefault();
+    event.stopPropagation();
     const planetId = removeButton.closest("[data-planet-id]")?.dataset.planetId;
     planets = planets.filter((planet) => planet.id !== planetId);
     if (!planets.length) {
       planets.push(defaultPlanet("Planet 1"));
     }
+    setActivePlanetDraft(planets[0].id);
     persistState();
     render();
   });
@@ -159,6 +176,7 @@ async function refreshPrices() {
 function render() {
   const selectedRecipe = recipeById(selectedRecipeId);
   const settings = currentSettings();
+  const selectedSettings = currentSelectedRecipeSettings(settings);
   const scoredRecipes = defaultRecipes
     .map((recipe) => ({ recipe, economics: evaluateRecipe(recipe, prices, settings) }))
     .sort(compareRecipes(elements.sortSelect.value));
@@ -168,7 +186,7 @@ function render() {
     elements.recipeGrid.append(renderRecipeCard(item.recipe, item.economics));
   }
 
-  renderSelectedRecipe(selectedRecipe, evaluateRecipe(selectedRecipe, prices, settings));
+  renderSelectedRecipe(selectedRecipe, evaluateRecipe(selectedRecipe, prices, selectedSettings));
   renderPlanetPlanner(settings);
 }
 
@@ -322,6 +340,17 @@ function currentSettings() {
   };
 }
 
+function currentSelectedRecipeSettings(settings) {
+  const activePlanet = planets[0];
+  if (!activePlanet || activePlanet.recipeId !== selectedRecipeId) return settings;
+  return {
+    ...settings,
+    inputAUnitPrice: activePlanet.inputAUnitPrice,
+    inputBUnitPrice: activePlanet.inputBUnitPrice,
+    outputUnitPrice: activePlanet.outputUnitPrice
+  };
+}
+
 function renderPlanetPlanner(settings) {
   syncPlanetOpenStates();
   const planetRows = planets.map((planet) => planetSummary(planet, settings));
@@ -360,7 +389,13 @@ function planetSummary(planet, settings) {
   const factories = clampInteger(planet.factories, 1, 100);
   const cyclesPerFactory = clampInteger(planet.cycles, 1, 10000);
   const totalCycles = planetTotalCycles(planet);
-  const economics = evaluateRecipe(recipe, prices, { ...settings, cycles: totalCycles });
+  const economics = evaluateRecipe(recipe, prices, {
+    ...settings,
+    cycles: totalCycles,
+    inputAUnitPrice: planet.inputAUnitPrice,
+    inputBUnitPrice: planet.inputBUnitPrice,
+    outputUnitPrice: planet.outputUnitPrice
+  });
   return {
     planet,
     recipe,
@@ -377,6 +412,7 @@ function renderPlanetRow(row, isActiveDraft = false) {
   const status = economics.profit === null
     ? missingDepthText(economics)
     : `${formatNumber(totalCycles)} total factory cycles · ${sellThroughNote(economics)}`;
+  const overrideStatus = overrideSummaryText(planet);
   const recipeOptions = defaultRecipes.map((option) => (
     `<option value="${escapeHtml(option.id)}"${option.id === recipe.id ? " selected" : ""}>${escapeHtml(option.name)}</option>`
   )).join("");
@@ -388,7 +424,10 @@ function renderPlanetRow(row, isActiveDraft = false) {
           <strong>${escapeHtml(planet.name)}${isActiveDraft ? ' <em>Editing</em>' : ""}</strong>
           <span>${escapeHtml(recipe.name)} · ${formatNumber(factories)} facilities · ${formatNumber(cyclesPerFactory)} cycles</span>
         </span>
-        <button class="ghost-button" data-remove-planet type="button"${planets.length <= 1 ? " disabled" : ""}>Remove</button>
+        <span class="planet-summary-actions">
+          <button class="ghost-button" data-edit-planet type="button">Edit</button>
+          <button class="ghost-button" data-remove-planet type="button"${planets.length <= 1 ? " disabled" : ""}>Remove</button>
+        </span>
       </summary>
       <div class="planet-body">
         <div class="planet-header">
@@ -408,6 +447,18 @@ function renderPlanetRow(row, isActiveDraft = false) {
           <label>
             Cycles per facility
             <input data-planet-cycles type="number" min="1" max="10000" step="1" value="${cyclesPerFactory}" />
+          </label>
+          <label>
+            ${escapeHtml(recipe.inputAName)} price
+            <input data-planet-input-a-price type="number" min="0" step="0.01" value="${formatOverrideValue(planet.inputAUnitPrice)}" placeholder="Market default" />
+          </label>
+          <label>
+            ${escapeHtml(recipe.inputBName)} price
+            <input data-planet-input-b-price type="number" min="0" step="0.01" value="${formatOverrideValue(planet.inputBUnitPrice)}" placeholder="Market default" />
+          </label>
+          <label>
+            ${escapeHtml(recipe.name)} price
+            <input data-planet-output-price type="number" min="0" step="0.01" value="${formatOverrideValue(planet.outputUnitPrice)}" placeholder="Market default" />
           </label>
         </div>
       </div>
@@ -433,7 +484,7 @@ function renderPlanetRow(row, isActiveDraft = false) {
           <strong>${formatIsk(p2Target)}</strong>
         </div>
       </div>
-      <div class="planet-note">${escapeHtml(recipe.inputAName)} + ${escapeHtml(recipe.inputBName)} · ${status}</div>
+      <div class="planet-note">${escapeHtml(recipe.inputAName)} + ${escapeHtml(recipe.inputBName)} · ${status}${overrideStatus ? ` · ${overrideStatus}` : ""}</div>
     </details>
   `;
 }
@@ -531,7 +582,10 @@ function normalizePlanets(value) {
     recipeId: recipeById(planet.recipeId).id,
     factories: clampInteger(planet.factories, 1, 100),
     cycles: clampInteger(planet.cycles, 1, 10000),
-    isOpen: planet.isOpen !== false
+    isOpen: planet.isOpen === true,
+    inputAUnitPrice: normalizeOverridePrice(planet.inputAUnitPrice),
+    inputBUnitPrice: normalizeOverridePrice(planet.inputBUnitPrice),
+    outputUnitPrice: normalizeOverridePrice(planet.outputUnitPrice)
   }));
 }
 
@@ -542,7 +596,10 @@ function defaultPlanet(name) {
     recipeId: selectedRecipeId,
     factories: activeFactoryCount(),
     cycles: currentCycleCount(),
-    isOpen: true
+    isOpen: true,
+    inputAUnitPrice: null,
+    inputBUnitPrice: null,
+    outputUnitPrice: null
   };
 }
 
@@ -555,8 +612,22 @@ function updateActivePlanetDraft(changes) {
   if (changes.cycles) {
     planet.cycles = clampInteger(changes.cycles, 1, 10000);
   }
-  planet.isOpen = true;
-  forceActivePlanetOpen = true;
+}
+
+function setActivePlanetDraft(planetId, options = {}) {
+  const index = planets.findIndex((planet) => planet.id === planetId);
+  if (index < 0) return;
+  const [planet] = planets.splice(index, 1);
+  planets.unshift(planet);
+  selectedRecipeId = recipeById(planet.recipeId).id;
+  const syncedCycles = clampInteger(planet.cycles, 1, 720);
+  planet.cycles = syncedCycles;
+  setCycleCount(syncedCycles);
+  if (options.open) {
+    planet.isOpen = true;
+    forceActivePlanetOpen = true;
+  }
+  updateGeneratedTemplate();
 }
 
 function updatePlanetFromControl(control) {
@@ -569,11 +640,28 @@ function updatePlanetFromControl(control) {
     planet.name = control.value;
   } else if (control.matches("[data-planet-recipe]")) {
     planet.recipeId = recipeById(control.value).id;
+    syncActiveControlsFromPlanet(planet);
   } else if (control.matches("[data-planet-factories]")) {
     planet.factories = clampInteger(control.value, 1, 100);
   } else if (control.matches("[data-planet-cycles]")) {
     planet.cycles = clampInteger(control.value, 1, 10000);
+    syncActiveControlsFromPlanet(planet);
+  } else if (control.matches("[data-planet-input-a-price]")) {
+    planet.inputAUnitPrice = normalizeOverridePrice(control.value);
+  } else if (control.matches("[data-planet-input-b-price]")) {
+    planet.inputBUnitPrice = normalizeOverridePrice(control.value);
+  } else if (control.matches("[data-planet-output-price]")) {
+    planet.outputUnitPrice = normalizeOverridePrice(control.value);
   }
+}
+
+function syncActiveControlsFromPlanet(planet) {
+  if (planet !== planets[0]) return;
+  selectedRecipeId = recipeById(planet.recipeId).id;
+  const syncedCycles = clampInteger(planet.cycles, 1, 720);
+  planet.cycles = syncedCycles;
+  setCycleCount(syncedCycles);
+  updateGeneratedTemplate();
 }
 
 function createId() {
@@ -672,6 +760,7 @@ function clampInteger(value, min, max) {
 
 function depthNote(depth) {
   if (!depth) return "No market depth loaded.";
+  if (depth.isOverride) return "Manual deal price.";
   if (!depth.isComplete) {
     return `Only ${formatNumber(depth.filledQuantity)} of ${formatNumber(depth.requestedQuantity)} units visible.`;
   }
@@ -679,6 +768,16 @@ function depthNote(depth) {
     return `Filled at ${formatIsk(depth.bestPrice)}.`;
   }
   return `Best ${formatIsk(depth.bestPrice)} · worst ${formatIsk(depth.worstPrice)}.`;
+}
+
+function overrideSummaryText(planet) {
+  const count = [
+    planet.inputAUnitPrice,
+    planet.inputBUnitPrice,
+    planet.outputUnitPrice
+  ].filter(Number.isFinite).length;
+  if (!count) return "";
+  return `${count} manual ${count === 1 ? "price" : "prices"} active`;
 }
 
 function sellThroughNote(economics) {
@@ -706,4 +805,15 @@ function missingDepthText(economics) {
   ].some((depth) => depth && depth.filledQuantity > 0);
 
   return missing ? "Not enough visible order depth for this run." : "Refresh prices to rank this schematic.";
+}
+
+function normalizeOverridePrice(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
+function formatOverrideValue(value) {
+  return Number.isFinite(value) ? String(value) : "";
 }
