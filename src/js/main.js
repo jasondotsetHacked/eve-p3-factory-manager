@@ -83,7 +83,7 @@ function bindEvents() {
   elements.addPlanetButton.addEventListener("click", () => {
     syncPlanetOpenStates();
     planets.unshift(defaultPlanet(`Planet ${planets.length + 1}`));
-    setActivePlanetDraft(planets[0].id);
+    setActivePlanetDraft(planets[0].id, { open: true });
     persistState();
     render();
   });
@@ -612,11 +612,9 @@ function updateActivePlanetDraft(changes) {
   if (changes.cycles) {
     planet.cycles = clampInteger(changes.cycles, 1, 10000);
   }
-  planet.isOpen = true;
-  forceActivePlanetOpen = true;
 }
 
-function setActivePlanetDraft(planetId) {
+function setActivePlanetDraft(planetId, options = {}) {
   const index = planets.findIndex((planet) => planet.id === planetId);
   if (index < 0) return;
   const [planet] = planets.splice(index, 1);
@@ -625,8 +623,10 @@ function setActivePlanetDraft(planetId) {
   const syncedCycles = clampInteger(planet.cycles, 1, 720);
   planet.cycles = syncedCycles;
   setCycleCount(syncedCycles);
-  planet.isOpen = true;
-  forceActivePlanetOpen = true;
+  if (options.open) {
+    planet.isOpen = true;
+    forceActivePlanetOpen = true;
+  }
   updateGeneratedTemplate();
 }
 
