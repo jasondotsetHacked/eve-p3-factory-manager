@@ -17,7 +17,7 @@ The app is static HTML, CSS, and JavaScript. There is no build step, backend ser
 - Copies Janice-friendly buy and sell appraisal lists from the full planet plan.
 - Keeps larger planet plans manageable with collapsible, scrollable planet rows.
 - Rewrites the bundled Robotics factory template into the selected P3 schematic by replacing factory schematic IDs and route type IDs.
-- Copies the generated template JSON so it can be pasted into an EVE PI template workflow that accepts this format.
+- Copies the selected schematic's template JSON so it can be pasted into an EVE PI template workflow that accepts this format.
 
 ## Running Locally
 
@@ -47,9 +47,8 @@ Any simple static server should work.
 6. Set each planet's schematic, Advanced Industry Facility count, and cycles per facility.
 7. Click **Copy Buy List** to copy all required P2 inputs for Janice.
 8. Click **Copy Sell List** to copy all expected P3 outputs for Janice.
-9. Choose a P3 schematic from the list when you want to generate an individual template.
-10. Click **Generate Selected Template** if needed.
-11. Click **Copy Template** and paste the generated JSON where you use PI templates.
+9. Choose a P3 schematic from the list when you want an individual template.
+10. Click **Copy Template** and paste the generated JSON where you use PI templates.
 
 The bundled template is a Robotics factory shell. The app detects the Robotics input and output route groups, then swaps them to the selected P3 recipe while preserving the factory layout, links, and routing paths.
 
@@ -90,10 +89,6 @@ Item Name	Quantity
 ```
 
 Quantities are aggregated across planets before copying.
-
-## Custom Template Shells
-
-Only use custom shells that you trust and have tested in-game. The app expects a two-input P3 factory layout with recognizable input and output route quantities. If the pasted template uses a different structure, route detection can fail or produce a template that should be checked before use.
 
 ## Project Layout
 

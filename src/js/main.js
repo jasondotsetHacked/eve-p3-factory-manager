@@ -1,10 +1,8 @@
 import { defaultRecipes } from "../data/recipes.js";
 import { sampleTemplate } from "../data/sample-template.js";
 import {
-  debugTemplate,
   detectRouteGroups,
   generateTemplate,
-  parseTemplateJson,
   summarizeTemplate
 } from "./template-engine.js";
 import {
@@ -39,15 +37,11 @@ const elements = {
   cycleCountNumber: document.querySelector("#cycleCountNumber"),
   inputPriceSide: document.querySelector("#inputPriceSide"),
   outputPriceSide: document.querySelector("#outputPriceSide"),
+  marketBar: document.querySelector(".market-bar"),
+  marketToggleButton: document.querySelector("#marketToggleButton"),
   marketStatus: document.querySelector("#marketStatus"),
   priceLines: document.querySelector("#priceLines"),
-  outputTemplate: document.querySelector("#outputTemplate"),
-  sourceTemplate: document.querySelector("#sourceTemplate"),
-  templateStatus: document.querySelector("#templateStatus"),
   refreshPricesButton: document.querySelector("#refreshPricesButton"),
-  generateButton: document.querySelector("#generateButton"),
-  resetTemplateButton: document.querySelector("#resetTemplateButton"),
-  useCustomTemplateButton: document.querySelector("#useCustomTemplateButton"),
   copyButton: document.querySelector("#copyButton")
 };
 
@@ -57,8 +51,11 @@ let routeGroups = detectRouteGroups(template);
 let selectedRecipeId = savedState.selectedRecipeId ?? "robotics";
 let prices = savedState.prices ?? {};
 let planets = normalizePlanets(savedState.planets);
+let generatedTemplate = "";
+let copyButtonResetTimer = null;
+let expandedRecipeId = null;
+let forceActivePlanetOpen = false;
 
-elements.sourceTemplate.value = JSON.stringify(sampleTemplate);
 elements.inputPriceSide.value = savedState.inputSide ?? "sell";
 elements.outputPriceSide.value = savedState.outputSide ?? "buy";
 setCycleCount(savedState.cycles ?? 24);
@@ -67,12 +64,25 @@ bindEvents();
 console.info(`[P3 Factory Manager] v${appVersion} loaded`);
 console.info("[P3 Factory Manager] Template source detected", routeGroups);
 render();
-generateSelectedTemplate();
+updateGeneratedTemplate();
 
 function bindEvents() {
+  document.addEventListener("click", (event) => {
+    if (!expandedRecipeId || event.target.closest(".recipe-card")) return;
+    expandedRecipeId = null;
+    render();
+  });
   elements.sortSelect.addEventListener("change", render);
+  elements.marketToggleButton.addEventListener("click", () => {
+    toggleMarketDetails();
+  });
+  elements.marketBar.addEventListener("click", (event) => {
+    if (event.target.closest("button, input, select")) return;
+    toggleMarketDetails();
+  });
   elements.addPlanetButton.addEventListener("click", () => {
-    planets.push(defaultPlanet(`Planet ${planets.length + 1}`));
+    syncPlanetOpenStates();
+    planets.unshift(defaultPlanet(`Planet ${planets.length + 1}`));
     persistState();
     render();
   });
@@ -89,6 +99,14 @@ function bindEvents() {
     persistState();
     render();
   });
+  elements.planetList.addEventListener("toggle", (event) => {
+    const card = event.target.closest?.("[data-planet-id]");
+    if (!card || event.target !== card) return;
+    const planet = planets.find((item) => item.id === card.dataset.planetId);
+    if (!planet) return;
+    planet.isOpen = card.open;
+    persistState();
+  }, true);
   elements.planetList.addEventListener("input", (event) => {
     updatePlanetFromControl(event.target);
     persistState();
@@ -108,34 +126,18 @@ function bindEvents() {
   });
   elements.cycleCount.addEventListener("input", () => {
     setCycleCount(elements.cycleCount.value);
+    updateActivePlanetDraft({ cycles: currentCycleCount() });
     persistState();
     render();
   });
   elements.cycleCountNumber.addEventListener("input", () => {
     setCycleCount(elements.cycleCountNumber.value);
+    updateActivePlanetDraft({ cycles: currentCycleCount() });
     persistState();
     render();
   });
   elements.refreshPricesButton.addEventListener("click", withErrorHandling(refreshPrices));
-  elements.generateButton.addEventListener("click", withErrorHandling(generateSelectedTemplate));
   elements.copyButton.addEventListener("click", withErrorHandling(copyOutput));
-  elements.resetTemplateButton.addEventListener("click", () => {
-    template = sampleTemplate;
-    routeGroups = detectRouteGroups(template);
-    elements.sourceTemplate.value = JSON.stringify(sampleTemplate);
-    setStatus(elements.templateStatus, "good", templateSummaryText("Using the bundled Robotics factory template."));
-    generateSelectedTemplate();
-  });
-  elements.useCustomTemplateButton.addEventListener("click", withErrorHandling(() => {
-    template = parseTemplateJson(elements.sourceTemplate.value);
-    routeGroups = detectRouteGroups(template);
-    console.info("[P3 Factory Manager] Custom template loaded", {
-      routeGroups,
-      summary: summarizeTemplate(template)
-    });
-    setStatus(elements.templateStatus, "good", templateSummaryText("Custom shell loaded."));
-    generateSelectedTemplate();
-  }));
 }
 
 async function refreshPrices() {
@@ -173,20 +175,24 @@ function render() {
 function renderRecipeCard(recipe, economics) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = `recipe-card${recipe.id === selectedRecipeId ? " selected" : ""}`;
-  button.addEventListener("click", () => {
+  button.className = [
+    "recipe-card",
+    recipe.id === selectedRecipeId ? "selected" : "",
+    recipe.id === expandedRecipeId ? "expanded" : ""
+  ].filter(Boolean).join(" ");
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
     selectedRecipeId = recipe.id;
+    expandedRecipeId = recipe.id;
+    updateActivePlanetDraft({ recipeId: selectedRecipeId });
     persistState();
     render();
-    generateSelectedTemplate();
+    updateGeneratedTemplate();
   });
 
   button.innerHTML = `
-    <div>
+    <div class="recipe-card-main">
       <div class="recipe-name">${escapeHtml(recipe.name)}</div>
-      <div class="recipe-inputs">${escapeHtml(recipe.inputAName)} + ${escapeHtml(recipe.inputBName)}</div>
-    </div>
-    <div class="recipe-economics">
       <div>
         <span class="label">Profit</span>
         <strong class="${valueClass(economics.profit)}">${formatIsk(economics.profit)}</strong>
@@ -196,7 +202,23 @@ function renderRecipeCard(recipe, economics) {
         <strong class="${valueClass(economics.roi)}">${formatPercent(economics.roi)}</strong>
       </div>
     </div>
-    <div class="recipe-price-note">${priceNote(economics)}</div>
+    <div class="recipe-popover" role="tooltip">
+      <div class="recipe-popover-heading">
+        <strong>${escapeHtml(recipe.name)}</strong>
+        <span>${escapeHtml(recipe.inputAName)} + ${escapeHtml(recipe.inputBName)}</span>
+      </div>
+      <div class="recipe-economics">
+        <div>
+          <span class="label">Profit</span>
+          <strong class="${valueClass(economics.profit)}">${formatIsk(economics.profit)}</strong>
+        </div>
+        <div>
+          <span class="label">ROI</span>
+          <strong class="${valueClass(economics.roi)}">${formatPercent(economics.roi)}</strong>
+        </div>
+      </div>
+      <div class="recipe-price-note">${priceNote(economics)}</div>
+    </div>
   `;
 
   return button;
@@ -233,38 +255,50 @@ function renderSelectedRecipe(recipe, economics) {
     }
   ].map((line) => `
     <div class="price-line">
-      <div>
+      <div class="price-line-main">
         <strong>${escapeHtml(line.name)}</strong>
+      </div>
+      <strong>${formatIsk(line.depth.averagePrice)}</strong>
+      <div class="price-line-detail">
         <span>${line.role}</span>
         <span>${depthNote(line.depth)}</span>
         ${line.extraNote ? `<span class="${sellThroughClass(economics)}">${line.extraNote}</span>` : ""}
       </div>
-      <strong>${formatIsk(line.depth.averagePrice)}</strong>
     </div>
   `).join("");
 }
 
-function generateSelectedTemplate() {
+function toggleMarketDetails() {
+  const isExpanded = elements.marketBar.classList.toggle("expanded");
+  elements.marketToggleButton.setAttribute("aria-expanded", String(isExpanded));
+}
+
+function updateGeneratedTemplate() {
   const recipe = recipeById(selectedRecipeId);
-  elements.outputTemplate.value = generateTemplate(template, routeGroups, recipe);
-  const generated = parseTemplateJson(elements.outputTemplate.value);
-  console.info("[P3 Factory Manager] Generated template debug", debugTemplate(generated, routeGroups, recipe));
-  console.info("[P3 Factory Manager] Generated template JSON", elements.outputTemplate.value);
-  setStatus(elements.templateStatus, "good", templateSummaryText(`Generated ${recipe.name} from the active shell.`));
+  generatedTemplate = generateTemplate(template, routeGroups, recipe);
+  console.info("[P3 Factory Manager] Generated template for copy", {
+    recipe: recipe.name,
+    bytes: new Blob([generatedTemplate]).size,
+    chars: generatedTemplate.length
+  });
 }
 
 async function copyOutput() {
-  if (!elements.outputTemplate.value.trim()) {
-    generateSelectedTemplate();
+  if (!generatedTemplate.trim()) {
+    updateGeneratedTemplate();
   }
-  await navigator.clipboard.writeText(elements.outputTemplate.value);
+  await navigator.clipboard.writeText(generatedTemplate);
   console.info("[P3 Factory Manager] Copied template to clipboard", {
-    bytes: new Blob([elements.outputTemplate.value]).size,
-    chars: elements.outputTemplate.value.length,
-    startsWith: elements.outputTemplate.value.slice(0, 80),
-    endsWith: elements.outputTemplate.value.slice(-80)
+    bytes: new Blob([generatedTemplate]).size,
+    chars: generatedTemplate.length,
+    startsWith: generatedTemplate.slice(0, 80),
+    endsWith: generatedTemplate.slice(-80)
   });
-  setStatus(elements.templateStatus, "good", "Template JSON copied to clipboard.");
+  elements.copyButton.textContent = "Template Copied";
+  clearTimeout(copyButtonResetTimer);
+  copyButtonResetTimer = setTimeout(() => {
+    elements.copyButton.textContent = "Copy Template";
+  }, 1800);
 }
 
 function compareRecipes(sortBy) {
@@ -289,6 +323,7 @@ function currentSettings() {
 }
 
 function renderPlanetPlanner(settings) {
+  syncPlanetOpenStates();
   const planetRows = planets.map((planet) => planetSummary(planet, settings));
   const completeRows = planetRows.filter((row) => row.economics.profit !== null);
   const totals = completeRows.reduce((sum, row) => ({
@@ -306,7 +341,18 @@ function renderPlanetPlanner(settings) {
   elements.totalRoi.className = hasIncompleteRows ? "" : valueClass(totals.profit / totals.cost);
   elements.planetCount.textContent = `${planetRows.length} ${planetRows.length === 1 ? "planet" : "planets"}`;
 
-  elements.planetList.innerHTML = planetRows.map((row) => renderPlanetRow(row, hasIncompleteRows)).join("");
+  elements.planetList.innerHTML = planetRows.map((row, index) => renderPlanetRow(row, index === 0)).join("");
+  forceActivePlanetOpen = false;
+}
+
+function syncPlanetOpenStates() {
+  elements.planetList.querySelectorAll("[data-planet-id]").forEach((card, index) => {
+    if (index === 0 && forceActivePlanetOpen) return;
+    const planet = planets.find((item) => item.id === card.dataset.planetId);
+    if (planet) {
+      planet.isOpen = card.open;
+    }
+  });
 }
 
 function planetSummary(planet, settings) {
@@ -325,8 +371,9 @@ function planetSummary(planet, settings) {
   };
 }
 
-function renderPlanetRow(row) {
+function renderPlanetRow(row, isActiveDraft = false) {
   const { planet, recipe, factories, cyclesPerFactory, totalCycles, economics } = row;
+  const p2Target = p2TargetPrice(economics);
   const status = economics.profit === null
     ? missingDepthText(economics)
     : `${formatNumber(totalCycles)} total factory cycles · ${sellThroughNote(economics)}`;
@@ -335,10 +382,10 @@ function renderPlanetRow(row) {
   )).join("");
 
   return `
-    <details class="planet-card" data-planet-id="${escapeHtml(planet.id)}" open>
+    <details class="planet-card${isActiveDraft ? " active-draft" : ""}" data-planet-id="${escapeHtml(planet.id)}"${planet.isOpen === false ? "" : " open"}>
       <summary class="planet-summary">
         <span>
-          <strong>${escapeHtml(planet.name)}</strong>
+          <strong>${escapeHtml(planet.name)}${isActiveDraft ? ' <em>Editing</em>' : ""}</strong>
           <span>${escapeHtml(recipe.name)} · ${formatNumber(factories)} facilities · ${formatNumber(cyclesPerFactory)} cycles</span>
         </span>
         <button class="ghost-button" data-remove-planet type="button"${planets.length <= 1 ? " disabled" : ""}>Remove</button>
@@ -380,6 +427,10 @@ function renderPlanetRow(row) {
         <div>
           <span class="label">ROI</span>
           <strong class="${valueClass(economics.roi)}">${formatPercent(economics.roi)}</strong>
+        </div>
+        <div>
+          <span class="label">Price / P2</span>
+          <strong>${formatIsk(p2Target)}</strong>
         </div>
       </div>
       <div class="planet-note">${escapeHtml(recipe.inputAName)} + ${escapeHtml(recipe.inputBName)} · ${status}</div>
@@ -479,7 +530,8 @@ function normalizePlanets(value) {
     name: String(planet.name || `Planet ${index + 1}`),
     recipeId: recipeById(planet.recipeId).id,
     factories: clampInteger(planet.factories, 1, 100),
-    cycles: clampInteger(planet.cycles, 1, 10000)
+    cycles: clampInteger(planet.cycles, 1, 10000),
+    isOpen: planet.isOpen !== false
   }));
 }
 
@@ -489,8 +541,22 @@ function defaultPlanet(name) {
     name,
     recipeId: selectedRecipeId,
     factories: activeFactoryCount(),
-    cycles: currentCycleCount()
+    cycles: currentCycleCount(),
+    isOpen: true
   };
+}
+
+function updateActivePlanetDraft(changes) {
+  const planet = planets[0];
+  if (!planet) return;
+  if (changes.recipeId) {
+    planet.recipeId = recipeById(changes.recipeId).id;
+  }
+  if (changes.cycles) {
+    planet.cycles = clampInteger(changes.cycles, 1, 10000);
+  }
+  planet.isOpen = true;
+  forceActivePlanetOpen = true;
 }
 
 function updatePlanetFromControl(control) {
@@ -512,11 +578,6 @@ function updatePlanetFromControl(control) {
 
 function createId() {
   return `planet-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function templateSummaryText(prefix) {
-  const summary = summarizeTemplate(template);
-  return `${prefix} ${summary.factories} factories, ${summary.routes} routes, ${summary.links} links.`;
 }
 
 function activeFactoryCount() {
@@ -558,6 +619,13 @@ function formatPercent(value) {
     maximumFractionDigits: 1,
     minimumFractionDigits: 1
   }).format(value * 100)}%`;
+}
+
+function p2TargetPrice(economics) {
+  if (!Number.isFinite(economics.revenue) || !Number.isFinite(economics.inputQuantity) || economics.inputQuantity <= 0) {
+    return null;
+  }
+  return economics.revenue / (economics.inputQuantity * 2);
 }
 
 function escapeHtml(value) {

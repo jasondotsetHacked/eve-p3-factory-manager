@@ -46,8 +46,56 @@
       </div>
     </section>
 
+    <section class="market-bar" aria-label="Market basis">
+      <button id="marketToggleButton" class="market-heading" type="button" aria-expanded="false">
+        <p class="eyebrow">Market basis</p>
+        <h2>Jita pricing</h2>
+        <span>Details</span>
+      </button>
+      <div class="field-grid">
+        <label class="range-field">
+          Cycles per facility
+          <span class="range-control">
+            <input id="cycleCount" type="range" min="1" max="720" step="1" value="24" />
+            <input id="cycleCountNumber" type="number" min="1" max="720" step="1" value="24" aria-label="Cycles per facility" />
+          </span>
+        </label>
+        <label>
+          Buy P2 inputs from
+          <select id="inputPriceSide">
+            <option value="sell">Lowest sell order</option>
+            <option value="buy">Highest buy order</option>
+          </select>
+        </label>
+        <label>
+          Value P3 output at
+          <select id="outputPriceSide">
+            <option value="buy">Highest buy order</option>
+            <option value="sell">Lowest sell order</option>
+          </select>
+        </label>
+      </div>
+      <div id="marketStatus" class="status warn">Prices have not been refreshed yet.</div>
+      <div id="priceLines" class="price-lines"></div>
+    </section>
+
     <div class="workspace">
       <div class="main-column">
+        <section class="schematic-panel" aria-label="P3 schematic selection">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Build decision</p>
+              <h2>Pick the P3 schematic</h2>
+            </div>
+            <select id="sortSelect" aria-label="Sort schematics">
+              <option value="profit">Sort by profit</option>
+              <option value="roi">Sort by ROI</option>
+              <option value="name">Sort by name</option>
+            </select>
+          </div>
+          <div id="recipeGrid" class="recipe-grid"></div>
+        </section>
+
         <section class="planner-panel" aria-label="Planet factory planner">
           <div class="section-heading">
             <div>
@@ -87,80 +135,7 @@
             <div id="planetList" class="planet-list"></div>
           </details>
         </section>
-
-        <section class="schematic-panel" aria-label="P3 schematic selection">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Build decision</p>
-              <h2>Pick the P3 schematic</h2>
-            </div>
-            <select id="sortSelect" aria-label="Sort schematics">
-              <option value="profit">Sort by profit</option>
-              <option value="roi">Sort by ROI</option>
-              <option value="name">Sort by name</option>
-            </select>
-          </div>
-          <div id="recipeGrid" class="recipe-grid"></div>
-        </section>
       </div>
-
-      <aside class="inspector" aria-label="Factory details">
-        <section class="panel-block">
-          <div class="section-heading compact">
-            <div>
-              <p class="eyebrow">Market basis</p>
-              <h2>Jita pricing</h2>
-            </div>
-          </div>
-          <div class="field-grid">
-            <label class="range-field">
-              Cycles per facility
-              <span class="range-control">
-                <input id="cycleCount" type="range" min="1" max="720" step="1" value="24" />
-                <input id="cycleCountNumber" type="number" min="1" max="720" step="1" value="24" aria-label="Cycles per facility" />
-              </span>
-            </label>
-            <label>
-              Buy P2 inputs from
-              <select id="inputPriceSide">
-                <option value="sell">Lowest sell order</option>
-                <option value="buy">Highest buy order</option>
-              </select>
-            </label>
-            <label>
-              Value P3 output at
-              <select id="outputPriceSide">
-                <option value="buy">Highest buy order</option>
-                <option value="sell">Lowest sell order</option>
-              </select>
-            </label>
-          </div>
-          <div id="marketStatus" class="status warn">Prices have not been refreshed yet.</div>
-          <div id="priceLines" class="price-lines"></div>
-        </section>
-
-        <section class="panel-block">
-          <div class="section-heading compact">
-            <div>
-              <p class="eyebrow">Template output</p>
-              <h2>Robotics shell rewrite</h2>
-            </div>
-          </div>
-          <div id="templateStatus" class="status good">Using the bundled Robotics factory template.</div>
-          <div class="template-actions">
-            <button id="generateButton" class="primary-button" type="button">Generate Selected Template</button>
-            <button id="resetTemplateButton" class="ghost-button" type="button">Reset Shell</button>
-          </div>
-          <textarea id="outputTemplate" spellcheck="false" aria-label="Generated template JSON" placeholder="Generated template JSON appears here."></textarea>
-        </section>
-
-        <details class="advanced-panel">
-          <summary>Advanced template source</summary>
-          <p>Paste another known-good two-input P3 factory template here if you want to reuse its layout.</p>
-          <textarea id="sourceTemplate" spellcheck="false" aria-label="Source template JSON"></textarea>
-          <button id="useCustomTemplateButton" class="ghost-button" type="button">Use Custom Shell</button>
-        </details>
-      </aside>
     </div>
   </main>
 
