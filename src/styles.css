@@ -400,6 +400,11 @@ label {
   display: grid;
 }
 
+.recipe-card.popover-end .recipe-popover {
+  right: 0;
+  left: auto;
+}
+
 .recipe-popover-heading {
   display: grid;
   gap: 3px;
@@ -652,14 +657,65 @@ label {
 }
 
 .range-field {
+  display: grid;
   gap: 8px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.range-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.day-step-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.day-step-button {
+  min-height: 28px;
+  border: 1px solid var(--line-strong);
+  background: rgba(3, 8, 11, 0.9);
+  color: var(--text);
+  padding: 4px 7px;
+  font-size: 0.72rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.day-step-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .range-control {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 84px;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
   gap: 10px;
   align-items: center;
+}
+
+.cycle-number-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(70px, 1fr));
+  gap: 6px;
+}
+
+.cycle-number-field {
+  display: grid;
+  gap: 3px;
+}
+
+.cycle-number-field > span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .status {
@@ -820,14 +876,6 @@ label {
     overflow: visible;
   }
 
-  .recipe-popover {
-    top: auto;
-    left: auto;
-    width: auto;
-    margin-top: 8px;
-    position: static;
-  }
-
   .metric-strip {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
@@ -894,8 +942,13 @@ label {
     gap: 4px;
   }
 
+  .day-step-button {
+    min-height: 26px;
+    padding: 3px 6px;
+  }
+
   .range-control {
-    grid-template-columns: minmax(0, 1fr) 76px;
+    grid-template-columns: minmax(0, 1fr) minmax(136px, auto);
     gap: 6px;
   }
 

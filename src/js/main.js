@@ -35,6 +35,9 @@ const elements = {
   cycleRoi: document.querySelector("#cycleRoi"),
   cycleCount: document.querySelector("#cycleCount"),
   cycleCountNumber: document.querySelector("#cycleCountNumber"),
+  cycleCountDays: document.querySelector("#cycleCountDays"),
+  cyclePreviousDayButton: document.querySelector("#cyclePreviousDayButton"),
+  cycleNextDayButton: document.querySelector("#cycleNextDayButton"),
   inputPriceSide: document.querySelector("#inputPriceSide"),
   outputPriceSide: document.querySelector("#outputPriceSide"),
   marketBar: document.querySelector(".market-bar"),
@@ -54,6 +57,7 @@ let planets = normalizePlanets(savedState.planets);
 let generatedTemplate = "";
 let copyButtonResetTimer = null;
 let expandedRecipeId = null;
+let expandedRecipePlacement = "start";
 let activePlanetId = savedState.activePlanetId && planets.some((planet) => planet.id === savedState.activePlanetId)
   ? savedState.activePlanetId
   : planets[0]?.id;
@@ -146,16 +150,22 @@ function bindEvents() {
     render();
   });
   elements.cycleCount.addEventListener("input", () => {
-    setCycleCount(elements.cycleCount.value);
-    updateActivePlanetDraft({ cycles: currentCycleCount() });
-    persistState();
-    render();
+    applyCycleCount(elements.cycleCount.value);
   });
   elements.cycleCountNumber.addEventListener("input", () => {
-    setCycleCount(elements.cycleCountNumber.value);
-    updateActivePlanetDraft({ cycles: currentCycleCount() });
-    persistState();
-    render();
+    applyCycleCount(elements.cycleCountNumber.value);
+  });
+  elements.cycleCountDays.addEventListener("input", () => {
+    applyDayCount(elements.cycleCountDays.value);
+  });
+  elements.cycleCountDays.addEventListener("change", () => {
+    setCycleCount(currentCycleCount());
+  });
+  elements.cyclePreviousDayButton.addEventListener("click", () => {
+    stepCycleCountByDay(-1);
+  });
+  elements.cycleNextDayButton.addEventListener("click", () => {
+    stepCycleCountByDay(1);
   });
   elements.refreshPricesButton.addEventListener("click", withErrorHandling(refreshPrices));
   elements.copyButton.addEventListener("click", withErrorHandling(copyOutput));
@@ -200,10 +210,12 @@ function renderRecipeCard(recipe, economics) {
   button.className = [
     "recipe-card",
     recipe.id === selectedRecipeId ? "selected" : "",
-    recipe.id === expandedRecipeId ? "expanded" : ""
+    recipe.id === expandedRecipeId ? "expanded" : "",
+    recipe.id === expandedRecipeId ? `popover-${expandedRecipePlacement}` : ""
   ].filter(Boolean).join(" ");
   button.addEventListener("click", (event) => {
     event.stopPropagation();
+    expandedRecipePlacement = recipePopoverPlacement(button);
     selectedRecipeId = recipe.id;
     expandedRecipeId = recipe.id;
     updateActivePlanetDraft({ recipeId: selectedRecipeId });
@@ -251,6 +263,14 @@ function renderRecipeCard(recipe, economics) {
   });
 
   return button;
+}
+
+function recipePopoverPlacement(card) {
+  const cardRect = card.getBoundingClientRect();
+  const gridRect = elements.recipeGrid.getBoundingClientRect();
+  const cardCenter = cardRect.left + cardRect.width / 2;
+  const gridCenter = gridRect.left + gridRect.width / 2;
+  return cardCenter > gridCenter ? "end" : "start";
 }
 
 function renderSelectedRecipe(recipe, economics) {
@@ -747,14 +767,44 @@ function withErrorHandling(action) {
   };
 }
 
-function setCycleCount(value) {
+function setCycleCount(value, options = {}) {
+  const { syncDays = true } = options;
   const cycles = Math.min(Math.max(Number.parseInt(value, 10) || 1, 1), 720);
   elements.cycleCount.value = String(cycles);
   elements.cycleCountNumber.value = String(cycles);
+  if (syncDays) {
+    elements.cycleCountDays.value = formatDayCount(cycles);
+  }
+}
+
+function applyCycleCount(value, options = {}) {
+  setCycleCount(value, options);
+  updateActivePlanetDraft({ cycles: currentCycleCount() });
+  persistState();
+  render();
+}
+
+function applyDayCount(value) {
+  const days = Number.parseFloat(value);
+  applyCycleCount(Number.isFinite(days) ? Math.round(days * 24) : 1, { syncDays: false });
+}
+
+function stepCycleCountByDay(direction) {
+  const cycles = currentCycleCount();
+  const dayHours = 24;
+  const dayRemainder = cycles % dayHours;
+  const nextCycles = direction > 0
+    ? cycles + (dayRemainder === 0 ? dayHours : dayHours - dayRemainder)
+    : cycles - (dayRemainder === 0 ? dayHours : dayRemainder);
+  applyCycleCount(nextCycles);
 }
 
 function currentCycleCount() {
   return Number.parseInt(elements.cycleCount.value, 10) || 1;
+}
+
+function formatDayCount(cycles) {
+  return String(Number((cycles / 24).toFixed(2)));
 }
 
 function planetTotalCycles(planet) {

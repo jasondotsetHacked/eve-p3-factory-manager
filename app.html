@@ -77,13 +77,28 @@
           <span>Details</span>
         </button>
         <div class="field-grid">
-          <label class="range-field">
-            Cycles per facility
+          <div class="range-field">
+            <span class="range-label">
+              <span>Cycles per facility</span>
+              <span class="day-step-actions" aria-label="Adjust cycles by whole days">
+                <button id="cyclePreviousDayButton" class="day-step-button" type="button" aria-label="Previous whole day">-1 day</button>
+                <button id="cycleNextDayButton" class="day-step-button" type="button" aria-label="Next whole day">+1 day</button>
+              </span>
+            </span>
             <span class="range-control">
               <input id="cycleCount" type="range" min="1" max="720" step="1" value="24" />
-              <input id="cycleCountNumber" type="number" min="1" max="720" step="1" value="24" aria-label="Cycles per facility" />
+              <span class="cycle-number-fields">
+                <span class="cycle-number-field">
+                  <span>Hours</span>
+                  <input id="cycleCountNumber" type="number" min="1" max="720" step="1" value="24" aria-label="Cycles per facility in hours" />
+                </span>
+                <span class="cycle-number-field">
+                  <span>Days</span>
+                  <input id="cycleCountDays" type="number" min="0.04" max="30" step="0.01" value="1" aria-label="Cycles per facility in days" />
+                </span>
+              </span>
             </span>
-          </label>
+          </div>
           <label>
             Buy P2 inputs from
             <select id="inputPriceSide">
