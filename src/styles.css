@@ -153,24 +153,31 @@ label {
   gap: 10px;
 }
 
-.title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.version-pill {
+.github-badge {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: fit-content;
   margin-top: 4px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid rgba(180, 130, 255, 0.72);
   border-radius: 5px;
-  background: var(--field);
-  color: var(--accent);
-  padding: 5px 8px;
+  background:
+    linear-gradient(135deg, rgba(126, 75, 255, 0.34), rgba(43, 17, 80, 0.96)),
+    #10071d;
+  color: #f4ebff;
+  padding: 5px 10px;
   font-size: 0.78rem;
   font-weight: 900;
+  line-height: 1.2;
+  text-decoration: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 18px rgba(126, 75, 255, 0.24);
+  transition: border-color 120ms ease, box-shadow 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.github-badge:hover {
+  border-color: #d6b4ff;
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 24px rgba(174, 103, 255, 0.42);
 }
 
 .eyebrow,
@@ -183,9 +190,15 @@ label {
 }
 
 .primary-button {
-  background: linear-gradient(135deg, var(--accent), #7cfce6);
-  color: #04110e;
+  border: 1px solid rgba(32, 244, 202, 0.76);
+  background: linear-gradient(135deg, rgba(32, 244, 202, 0.24), rgba(77, 160, 255, 0.18));
+  color: var(--text);
   box-shadow: 0 0 18px rgba(32, 244, 202, 0.18);
+}
+
+.primary-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .ghost-button {
@@ -197,26 +210,6 @@ label {
 .ghost-button:hover {
   border-color: var(--accent);
   color: var(--accent);
-}
-
-.github-button {
-  min-height: 30px;
-  border: 1px solid var(--line-strong);
-  border-radius: 5px;
-  background: rgba(3, 8, 11, 0.9);
-  color: var(--text);
-  padding: 5px 9px;
-  font-size: 0.78rem;
-  font-weight: 900;
-  line-height: 1.2;
-  text-decoration: none;
-  transition: border-color 120ms ease, box-shadow 120ms ease, color 120ms ease;
-}
-
-.github-button:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  box-shadow: var(--glow);
 }
 
 .command-band,

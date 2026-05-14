@@ -4,24 +4,23 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EVE PI P3 Factory Manager</title>
-  <link rel="stylesheet" href="./src/styles.css?v=0.5.0" />
+  <script>
+    document.write('<link rel="stylesheet" href="./src/styles.css?v=' + Date.now() + '" />');
+  </script>
 </head>
 <body>
   <main class="app-shell">
     <header class="topbar">
       <div>
         <p class="eyebrow">EVE Online PI Jita market planner</p>
-        <div class="title-row">
-          <h1>P3 Factory Manager</h1>
-          <a
-            class="github-button"
-            href="https://github.com/jasondotsetHacked/eve-p3-factory-manager"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Open EVE PI P3 Factory Manager on GitHub"
-          >GitHub</a>
-        </div>
-        <span id="appVersion" class="version-pill">v0.5.0</span>
+        <h1>P3 Factory Manager</h1>
+        <a
+          class="github-badge"
+          href="https://github.com/jasondotsetHacked/eve-p3-factory-manager"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open EVE PI P3 Factory Manager on GitHub"
+        >GitHub</a>
       </div>
       <div class="topbar-actions">
         <button id="refreshPricesButton" class="primary-button" type="button">Refresh Jita Prices</button>

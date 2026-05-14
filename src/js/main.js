@@ -54,7 +54,6 @@ let planets = normalizePlanets(savedState.planets);
 let generatedTemplate = "";
 let copyButtonResetTimer = null;
 let expandedRecipeId = null;
-let forceActivePlanetOpen = false;
 
 elements.inputPriceSide.value = savedState.inputSide ?? "sell";
 elements.outputPriceSide.value = savedState.outputSide ?? "buy";
@@ -83,7 +82,7 @@ function bindEvents() {
   elements.addPlanetButton.addEventListener("click", () => {
     syncPlanetOpenStates();
     planets.unshift(defaultPlanet(`Planet ${planets.length + 1}`));
-    setActivePlanetDraft(planets[0].id, { open: true });
+    setActivePlanetDraft(planets[0].id);
     persistState();
     render();
   });
@@ -371,12 +370,10 @@ function renderPlanetPlanner(settings) {
   elements.planetCount.textContent = `${planetRows.length} ${planetRows.length === 1 ? "planet" : "planets"}`;
 
   elements.planetList.innerHTML = planetRows.map((row, index) => renderPlanetRow(row, index === 0)).join("");
-  forceActivePlanetOpen = false;
 }
 
 function syncPlanetOpenStates() {
-  elements.planetList.querySelectorAll("[data-planet-id]").forEach((card, index) => {
-    if (index === 0 && forceActivePlanetOpen) return;
+  elements.planetList.querySelectorAll("[data-planet-id]").forEach((card) => {
     const planet = planets.find((item) => item.id === card.dataset.planetId);
     if (planet) {
       planet.isOpen = card.open;
@@ -418,7 +415,7 @@ function renderPlanetRow(row, isActiveDraft = false) {
   )).join("");
 
   return `
-    <details class="planet-card${isActiveDraft ? " active-draft" : ""}" data-planet-id="${escapeHtml(planet.id)}"${planet.isOpen === false ? "" : " open"}>
+    <details class="planet-card${isActiveDraft ? " active-draft" : ""}" data-planet-id="${escapeHtml(planet.id)}"${planet.isOpen ? " open" : ""}>
       <summary class="planet-summary">
         <span>
           <strong>${escapeHtml(planet.name)}${isActiveDraft ? ' <em>Editing</em>' : ""}</strong>
@@ -596,7 +593,7 @@ function defaultPlanet(name) {
     recipeId: selectedRecipeId,
     factories: activeFactoryCount(),
     cycles: currentCycleCount(),
-    isOpen: true,
+    isOpen: false,
     inputAUnitPrice: null,
     inputBUnitPrice: null,
     outputUnitPrice: null
@@ -614,7 +611,7 @@ function updateActivePlanetDraft(changes) {
   }
 }
 
-function setActivePlanetDraft(planetId, options = {}) {
+function setActivePlanetDraft(planetId) {
   const index = planets.findIndex((planet) => planet.id === planetId);
   if (index < 0) return;
   const [planet] = planets.splice(index, 1);
@@ -623,10 +620,6 @@ function setActivePlanetDraft(planetId, options = {}) {
   const syncedCycles = clampInteger(planet.cycles, 1, 720);
   planet.cycles = syncedCycles;
   setCycleCount(syncedCycles);
-  if (options.open) {
-    planet.isOpen = true;
-    forceActivePlanetOpen = true;
-  }
   updateGeneratedTemplate();
 }
 
