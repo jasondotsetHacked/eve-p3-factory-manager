@@ -772,8 +772,13 @@ label {
   }
 
   .layout-left {
-    align-content: start;
+    display: flex;
+    flex-direction: column;
     padding-right: 2px;
+  }
+
+  .layout-left > * {
+    flex: 0 0 auto;
   }
 
   .topbar {
@@ -813,6 +818,14 @@ label {
   .recipe-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     overflow: visible;
+  }
+
+  .recipe-popover {
+    top: auto;
+    left: auto;
+    width: auto;
+    margin-top: 8px;
+    position: static;
   }
 
   .metric-strip {
@@ -901,8 +914,6 @@ label {
   .market-bar .price-lines {
     grid-column: 1 / -1;
     grid-template-columns: 1fr;
-    max-height: 24vh;
-    overflow: auto;
   }
 
   .planner-panel {
