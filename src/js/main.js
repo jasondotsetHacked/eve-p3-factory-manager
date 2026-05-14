@@ -54,6 +54,9 @@ let planets = normalizePlanets(savedState.planets);
 let generatedTemplate = "";
 let copyButtonResetTimer = null;
 let expandedRecipeId = null;
+let activePlanetId = savedState.activePlanetId && planets.some((planet) => planet.id === savedState.activePlanetId)
+  ? savedState.activePlanetId
+  : planets[0]?.id;
 
 elements.inputPriceSide.value = savedState.inputSide ?? "sell";
 elements.outputPriceSide.value = savedState.outputSide ?? "buy";
@@ -111,7 +114,9 @@ function bindEvents() {
     if (!planets.length) {
       planets.push(defaultPlanet("Planet 1"));
     }
-    setActivePlanetDraft(planets[0].id);
+    if (!planets.some((planet) => planet.id === activePlanetId)) {
+      setActivePlanetDraft(planets[0].id);
+    }
     persistState();
     render();
   });
@@ -238,6 +243,13 @@ function renderRecipeCard(recipe, economics) {
     </div>
   `;
 
+  button.querySelector(".recipe-popover").addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    expandedRecipeId = null;
+    render();
+  });
+
   return button;
 }
 
@@ -340,7 +352,7 @@ function currentSettings() {
 }
 
 function currentSelectedRecipeSettings(settings) {
-  const activePlanet = planets[0];
+  const activePlanet = activePlanetDraft();
   if (!activePlanet || activePlanet.recipeId !== selectedRecipeId) return settings;
   return {
     ...settings,
@@ -369,7 +381,7 @@ function renderPlanetPlanner(settings) {
   elements.totalRoi.className = hasIncompleteRows ? "" : valueClass(totals.profit / totals.cost);
   elements.planetCount.textContent = `${planetRows.length} ${planetRows.length === 1 ? "planet" : "planets"}`;
 
-  elements.planetList.innerHTML = planetRows.map((row, index) => renderPlanetRow(row, index === 0)).join("");
+  elements.planetList.innerHTML = planetRows.map((row) => renderPlanetRow(row, row.planet.id === activePlanetId)).join("");
 }
 
 function syncPlanetOpenStates() {
@@ -552,6 +564,7 @@ function persistState() {
     inputSide: elements.inputPriceSide.value,
     outputSide: elements.outputPriceSide.value,
     cycles: currentCycleCount(),
+    activePlanetId,
     planets,
     prices
   };
@@ -601,7 +614,7 @@ function defaultPlanet(name) {
 }
 
 function updateActivePlanetDraft(changes) {
-  const planet = planets[0];
+  const planet = activePlanetDraft();
   if (!planet) return;
   if (changes.recipeId) {
     planet.recipeId = recipeById(changes.recipeId).id;
@@ -612,15 +625,18 @@ function updateActivePlanetDraft(changes) {
 }
 
 function setActivePlanetDraft(planetId) {
-  const index = planets.findIndex((planet) => planet.id === planetId);
-  if (index < 0) return;
-  const [planet] = planets.splice(index, 1);
-  planets.unshift(planet);
+  const planet = planets.find((item) => item.id === planetId);
+  if (!planet) return;
+  activePlanetId = planet.id;
   selectedRecipeId = recipeById(planet.recipeId).id;
   const syncedCycles = clampInteger(planet.cycles, 1, 720);
   planet.cycles = syncedCycles;
   setCycleCount(syncedCycles);
   updateGeneratedTemplate();
+}
+
+function activePlanetDraft() {
+  return planets.find((planet) => planet.id === activePlanetId) ?? planets[0];
 }
 
 function updatePlanetFromControl(control) {
@@ -649,7 +665,7 @@ function updatePlanetFromControl(control) {
 }
 
 function syncActiveControlsFromPlanet(planet) {
-  if (planet !== planets[0]) return;
+  if (planet.id !== activePlanetId) return;
   selectedRecipeId = recipeById(planet.recipeId).id;
   const syncedCycles = clampInteger(planet.cycles, 1, 720);
   planet.cycles = syncedCycles;

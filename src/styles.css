@@ -132,6 +132,12 @@ label {
   gap: 8px;
 }
 
+.layout-left {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
 .topbar {
   min-height: 0;
   border: 1px solid var(--line);
@@ -264,26 +270,16 @@ label {
   font-size: 1rem;
 }
 
-.workspace {
-  display: block;
-  min-width: 0;
-}
-
 .planner-panel,
 .schematic-panel,
 .panel-block {
   padding: 10px;
 }
 
-.main-column,
 .planner-panel,
 .schematic-panel {
   display: grid;
   gap: 8px;
-}
-
-.main-column {
-  align-items: start;
 }
 
 .section-heading {
@@ -397,7 +393,7 @@ label {
   padding: 10px;
   display: none;
   gap: 8px;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .recipe-card.expanded .recipe-popover {
@@ -754,14 +750,179 @@ label {
   }
 }
 
-@media (orientation: landscape) and (min-width: 1061px) {
-  .main-column {
-    grid-template-columns: minmax(300px, 0.82fr) minmax(520px, 1.18fr);
+@media (orientation: landscape) {
+  body {
+    overflow: hidden;
+  }
+
+  .app-shell {
+    height: 100vh;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .layout-left,
+  .planner-panel {
+    min-height: 0;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .layout-left {
+    align-content: start;
+    padding-right: 2px;
+  }
+
+  .topbar {
+    align-items: center;
+    padding: 8px 10px;
+  }
+
+  .topbar h1 {
+    font-size: clamp(1.18rem, 1.8vw, 1.65rem);
+  }
+
+  .topbar-actions {
+    flex: 0 0 auto;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .topbar-actions > button {
+    flex: 0 1 auto;
+    min-height: 34px;
+    padding: 7px 10px;
+  }
+
+  .command-band,
+  .market-bar {
+    grid-template-columns: 1fr;
   }
 
   .schematic-panel {
-    position: sticky;
-    top: 8px;
+    min-height: 0;
+  }
+
+  .schematic-panel .section-heading {
+    align-items: center;
+  }
+
+  .recipe-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    overflow: visible;
+  }
+
+  .metric-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .command-band {
+    grid-template-columns: minmax(150px, 0.58fr) minmax(0, 1.42fr);
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .selected-output {
+    gap: 1px;
+    padding: 2px 4px;
+  }
+
+  .selected-output strong {
+    font-size: 1rem;
+  }
+
+  .selected-output span:last-child {
+    font-size: 0.82rem;
+    line-height: 1.25;
+  }
+
+  .metric-strip > div {
+    padding: 5px 6px;
+    gap: 1px;
+  }
+
+  .metric-strip .label {
+    font-size: 0.62rem;
+  }
+
+  .metric-strip strong {
+    font-size: 0.82rem;
+  }
+
+  .market-bar {
+    grid-template-columns: 116px minmax(0, 1fr);
+    align-items: stretch;
+    padding: 6px;
+  }
+
+  .market-heading {
+    min-width: 0;
+    padding: 6px 8px;
+  }
+
+  .field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .field-grid .range-field {
+    grid-column: 1 / -1;
+  }
+
+  .market-bar label {
+    gap: 4px;
+  }
+
+  .range-field {
+    gap: 4px;
+  }
+
+  .range-control {
+    grid-template-columns: minmax(0, 1fr) 76px;
+    gap: 6px;
+  }
+
+  .market-bar select,
+  .market-bar input[type="number"] {
+    min-height: 34px;
+    padding: 7px 9px;
+  }
+
+  .market-bar .status {
+    grid-column: 1 / -1;
+    min-height: 0;
+    padding: 7px 9px;
+  }
+
+  .market-bar .price-lines {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+    max-height: 24vh;
+    overflow: auto;
+  }
+
+  .planner-panel {
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+  }
+
+  .planner-totals,
+  .planet-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+
+  .planet-drawer {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .planet-drawer[open] > .planet-list {
+    min-height: 0;
+    max-height: none;
   }
 }
 
