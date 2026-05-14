@@ -646,8 +646,12 @@ label {
 
 .planet-controls {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.planet-controls > label {
+  min-width: 0;
 }
 
 .planet-note {
@@ -930,6 +934,10 @@ label {
     gap: 6px;
   }
 
+  .planet-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .field-grid .range-field {
     grid-column: 1 / -1;
   }
@@ -1024,6 +1032,10 @@ label {
   }
 
   .market-bar .price-lines {
+    grid-template-columns: 1fr;
+  }
+
+  .planet-controls {
     grid-template-columns: 1fr;
   }
 }

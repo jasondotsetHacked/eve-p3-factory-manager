@@ -481,15 +481,15 @@ function renderPlanetRow(row, isActiveDraft = false) {
             <input data-planet-cycles type="number" min="1" max="10000" step="1" value="${cyclesPerFactory}" />
           </label>
           <label>
-            ${escapeHtml(recipe.inputAName)} price
+            ${escapeHtml(recipe.inputAName)}
             <input data-planet-input-a-price type="number" min="0" step="0.01" value="${formatOverrideValue(planet.inputAUnitPrice)}" placeholder="Market default" />
           </label>
           <label>
-            ${escapeHtml(recipe.inputBName)} price
+            ${escapeHtml(recipe.inputBName)}
             <input data-planet-input-b-price type="number" min="0" step="0.01" value="${formatOverrideValue(planet.inputBUnitPrice)}" placeholder="Market default" />
           </label>
           <label>
-            ${escapeHtml(recipe.name)} price
+            ${escapeHtml(recipe.name)}
             <input data-planet-output-price type="number" min="0" step="0.01" value="${formatOverrideValue(planet.outputUnitPrice)}" placeholder="Market default" />
           </label>
         </div>
