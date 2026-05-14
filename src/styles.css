@@ -599,6 +599,11 @@ label {
   white-space: nowrap;
 }
 
+.planet-summary-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
 .planet-body {
   display: grid;
   gap: 10px;

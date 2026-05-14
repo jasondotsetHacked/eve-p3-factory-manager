@@ -89,8 +89,24 @@ function bindEvents() {
   elements.copyBuyListButton.addEventListener("click", withErrorHandling(() => copyPlannerList("buy")));
   elements.copySellListButton.addEventListener("click", withErrorHandling(() => copyPlannerList("sell")));
   elements.planetList.addEventListener("click", (event) => {
+    const editButton = event.target.closest("[data-edit-planet]");
+    if (editButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const card = editButton.closest("[data-planet-id]");
+      const planetId = card?.dataset.planetId;
+      if (!planetId) return;
+      setActivePlanetDraft(planetId);
+      persistState();
+      render();
+      updateGeneratedTemplate();
+      return;
+    }
+
     const removeButton = event.target.closest("[data-remove-planet]");
     if (!removeButton) return;
+    event.preventDefault();
+    event.stopPropagation();
     const planetId = removeButton.closest("[data-planet-id]")?.dataset.planetId;
     planets = planets.filter((planet) => planet.id !== planetId);
     if (!planets.length) {
@@ -388,7 +404,10 @@ function renderPlanetRow(row, isActiveDraft = false) {
           <strong>${escapeHtml(planet.name)}${isActiveDraft ? ' <em>Editing</em>' : ""}</strong>
           <span>${escapeHtml(recipe.name)} · ${formatNumber(factories)} facilities · ${formatNumber(cyclesPerFactory)} cycles</span>
         </span>
-        <button class="ghost-button" data-remove-planet type="button"${planets.length <= 1 ? " disabled" : ""}>Remove</button>
+        <span class="planet-summary-actions">
+          <button class="ghost-button" data-edit-planet type="button">Edit</button>
+          <button class="ghost-button" data-remove-planet type="button"${planets.length <= 1 ? " disabled" : ""}>Remove</button>
+        </span>
       </summary>
       <div class="planet-body">
         <div class="planet-header">
@@ -531,7 +550,7 @@ function normalizePlanets(value) {
     recipeId: recipeById(planet.recipeId).id,
     factories: clampInteger(planet.factories, 1, 100),
     cycles: clampInteger(planet.cycles, 1, 10000),
-    isOpen: planet.isOpen !== false
+    isOpen: planet.isOpen === true
   }));
 }
 
@@ -542,7 +561,7 @@ function defaultPlanet(name) {
     recipeId: selectedRecipeId,
     factories: activeFactoryCount(),
     cycles: currentCycleCount(),
-    isOpen: true
+    isOpen: false
   };
 }
 
@@ -555,6 +574,17 @@ function updateActivePlanetDraft(changes) {
   if (changes.cycles) {
     planet.cycles = clampInteger(changes.cycles, 1, 10000);
   }
+  planet.isOpen = true;
+  forceActivePlanetOpen = true;
+}
+
+function setActivePlanetDraft(planetId) {
+  const index = planets.findIndex((planet) => planet.id === planetId);
+  if (index < 0) return;
+  const [planet] = planets.splice(index, 1);
+  planets.unshift(planet);
+  selectedRecipeId = recipeById(planet.recipeId).id;
+  setCycleCount(clampInteger(planet.cycles, 1, 720));
   planet.isOpen = true;
   forceActivePlanetOpen = true;
 }
