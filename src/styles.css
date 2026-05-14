@@ -64,6 +64,7 @@ button:disabled {
   opacity: 0.62;
 }
 
+input,
 select,
 textarea {
   width: 100%;
@@ -76,9 +77,20 @@ textarea {
 }
 
 select:focus,
+input:focus,
 textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(114, 224, 199, 0.16);
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+  border: 0;
+  padding: 0;
+}
+
+input[type="number"] {
+  min-height: 38px;
 }
 
 textarea {
@@ -180,6 +192,7 @@ label {
 }
 
 .command-band,
+.planner-panel,
 .schematic-panel,
 .panel-block,
 .advanced-panel {
@@ -237,12 +250,15 @@ label {
   align-items: start;
 }
 
+.planner-panel,
 .schematic-panel,
 .panel-block,
 .advanced-panel {
   padding: 14px;
 }
 
+.main-column,
+.planner-panel,
 .schematic-panel,
 .inspector {
   display: grid;
@@ -266,6 +282,13 @@ label {
 
 .section-heading.compact {
   align-items: start;
+}
+
+.planner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .recipe-grid {
@@ -338,6 +361,147 @@ label {
   gap: 10px;
 }
 
+.planner-totals,
+.planet-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.planner-totals > div,
+.planet-metrics > div {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--field);
+  padding: 9px;
+  display: grid;
+  gap: 4px;
+}
+
+.planet-list {
+  max-height: min(620px, 68vh);
+  overflow: auto;
+  padding-right: 4px;
+  display: grid;
+  gap: 8px;
+}
+
+.planet-card {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: linear-gradient(180deg, #0d171d, #091116);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.planet-card:not([open]) {
+  padding-bottom: 12px;
+}
+
+.planet-drawer {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(3, 8, 11, 0.46);
+}
+
+.planet-drawer > summary,
+.planet-summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.planet-drawer > summary::-webkit-details-marker,
+.planet-summary::-webkit-details-marker {
+  display: none;
+}
+
+.planet-drawer > summary {
+  min-height: 42px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 900;
+}
+
+.planet-drawer > summary::before,
+.planet-summary::before {
+  content: "▾";
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+
+.planet-drawer:not([open]) > summary::before,
+.planet-card:not([open]) > .planet-summary::before {
+  content: "▸";
+}
+
+.planet-drawer > summary span:last-child {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.planet-drawer[open] > .planet-list {
+  border-top: 1px solid var(--line);
+  padding: 8px;
+}
+
+.planet-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.planet-summary > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.planet-summary > span span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planet-body {
+  display: grid;
+  gap: 10px;
+}
+
+.planet-header {
+  display: grid;
+}
+
+.planet-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(2, minmax(120px, 0.8fr));
+  gap: 10px;
+}
+
+.planet-note {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.range-field {
+  gap: 8px;
+}
+
+.range-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px;
+  gap: 10px;
+  align-items: center;
+}
+
 .status {
   border: 1px solid var(--line);
   border-radius: 5px;
@@ -375,6 +539,12 @@ label {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
+  align-items: start;
+}
+
+.price-line > div {
+  display: grid;
+  gap: 2px;
 }
 
 .price-line span {
@@ -400,6 +570,7 @@ label {
 @media (max-width: 1060px) {
   .topbar,
   .command-band,
+  .planet-controls,
   .workspace {
     grid-template-columns: 1fr;
   }
@@ -421,6 +592,11 @@ label {
   }
 
   .metric-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .planner-totals,
+  .planet-metrics {
     grid-template-columns: 1fr 1fr;
   }
 

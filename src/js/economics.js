@@ -25,15 +25,27 @@ export async function fetchJitaPrices(typeIds, onProgress = () => {}) {
 }
 
 export function evaluateRecipe(recipe, prices, settings) {
-  const inputAPrice = priceFor(prices[recipe.inputATypeId], settings.inputSide);
-  const inputBPrice = priceFor(prices[recipe.inputBTypeId], settings.inputSide);
-  const outputPrice = priceFor(prices[recipe.outputTypeId], settings.outputSide);
+  const cycles = clampCycleCount(settings.cycles);
+  const inputQuantity = cycles * 10;
+  const outputQuantity = cycles * 3;
+  const inputA = depthPrice(prices[recipe.inputATypeId], settings.inputSide, inputQuantity);
+  const inputB = depthPrice(prices[recipe.inputBTypeId], settings.inputSide, inputQuantity);
+  const output = depthPrice(prices[recipe.outputTypeId], settings.outputSide, outputQuantity);
+  const outputDemand = depthPrice(prices[recipe.outputTypeId], "buy", outputQuantity);
+  const allDepthFilled = [inputA, inputB, output].every((result) => result.isComplete);
 
-  if (![inputAPrice, inputBPrice, outputPrice].every((value) => Number.isFinite(value) && value > 0)) {
+  if (!allDepthFilled) {
     return {
-      inputAPrice,
-      inputBPrice,
-      outputPrice,
+      cycles,
+      inputQuantity,
+      outputQuantity,
+      inputA,
+      inputB,
+      output,
+      outputDemand,
+      inputAPrice: inputA.averagePrice,
+      inputBPrice: inputB.averagePrice,
+      outputPrice: output.averagePrice,
       cost: null,
       revenue: null,
       profit: null,
@@ -41,24 +53,26 @@ export function evaluateRecipe(recipe, prices, settings) {
     };
   }
 
-  const cost = (10 * inputAPrice) + (10 * inputBPrice);
-  const revenue = 3 * outputPrice;
+  const cost = inputA.totalValue + inputB.totalValue;
+  const revenue = output.totalValue;
   const profit = revenue - cost;
 
   return {
-    inputAPrice,
-    inputBPrice,
-    outputPrice,
+    cycles,
+    inputQuantity,
+    outputQuantity,
+    inputA,
+    inputB,
+    output,
+    outputDemand,
+    inputAPrice: inputA.averagePrice,
+    inputBPrice: inputB.averagePrice,
+    outputPrice: output.averagePrice,
     cost,
     revenue,
     profit,
     roi: cost > 0 ? profit / cost : null
   };
-}
-
-function priceFor(price, side) {
-  if (!price) return null;
-  return side === "buy" ? price.highestBuy : price.lowestSell;
 }
 
 async function fetchJitaPrice(typeId) {
@@ -73,8 +87,78 @@ async function fetchJitaPrice(typeId) {
     lowestSell: minPrice(sellOrders),
     buyVolume: sumVolume(buyOrders),
     sellVolume: sumVolume(sellOrders),
+    buyOrders: compressOrders(buyOrders).sort((a, b) => b.price - a.price),
+    sellOrders: compressOrders(sellOrders).sort((a, b) => a.price - b.price),
     fetchedAt: new Date().toISOString()
   };
+}
+
+function depthPrice(price, side, quantity) {
+  const emptyResult = {
+    averagePrice: null,
+    totalValue: null,
+    requestedQuantity: quantity,
+    filledQuantity: 0,
+    availableQuantity: 0,
+    bestPrice: null,
+    worstPrice: null,
+    isComplete: false
+  };
+
+  if (!price || !Number.isFinite(quantity) || quantity <= 0) {
+    return emptyResult;
+  }
+
+  const orders = side === "buy" ? price.buyOrders : price.sellOrders;
+  if (!Array.isArray(orders) || !orders.length) {
+    return {
+      ...emptyResult,
+      availableQuantity: side === "buy" ? price.buyVolume ?? 0 : price.sellVolume ?? 0,
+      bestPrice: side === "buy" ? price.highestBuy ?? null : price.lowestSell ?? null
+    };
+  }
+
+  let remaining = quantity;
+  let totalValue = 0;
+  let filledQuantity = 0;
+  let worstPrice = null;
+
+  for (const order of orders) {
+    if (remaining <= 0) break;
+    const fillQuantity = Math.min(order.volume, remaining);
+    totalValue += fillQuantity * order.price;
+    filledQuantity += fillQuantity;
+    remaining -= fillQuantity;
+    worstPrice = order.price;
+  }
+
+  const availableQuantity = orders.reduce((total, order) => total + order.volume, 0);
+  const isComplete = filledQuantity >= quantity;
+
+  return {
+    averagePrice: isComplete ? totalValue / quantity : null,
+    totalValue: isComplete ? totalValue : null,
+    requestedQuantity: quantity,
+    filledQuantity,
+    availableQuantity,
+    bestPrice: orders[0]?.price ?? null,
+    worstPrice,
+    isComplete
+  };
+}
+
+function compressOrders(orders) {
+  const byPrice = new Map();
+  for (const order of orders) {
+    byPrice.set(order.price, (byPrice.get(order.price) ?? 0) + order.volume_remain);
+  }
+  return [...byPrice.entries()].map(([price, volume]) => ({ price, volume }));
+}
+
+function clampCycleCount(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.min(Math.max(parsed, 1), 1000000);
 }
 
 async function fetchAllOrders(typeId) {

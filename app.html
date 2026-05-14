@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EVE PI P3 Factory Manager</title>
-  <link rel="stylesheet" href="./src/styles.css?v=0.3.1" />
+  <link rel="stylesheet" href="./src/styles.css?v=0.5.0" />
 </head>
 <body>
   <main class="app-shell">
@@ -12,7 +12,7 @@
       <div>
         <p class="eyebrow">EVE Online PI Jita market planner</p>
         <h1>P3 Factory Manager</h1>
-        <span id="appVersion" class="version-pill">v0.3.1</span>
+        <span id="appVersion" class="version-pill">v0.5.0</span>
       </div>
       <div class="topbar-actions">
         <button id="refreshPricesButton" class="primary-button" type="button">Refresh Jita Prices</button>
@@ -28,15 +28,15 @@
       </div>
       <div class="metric-strip">
         <div>
-          <span class="label">Cycle cost</span>
+          <span class="label">Template investment</span>
           <strong id="cycleCost">-</strong>
         </div>
         <div>
-          <span class="label">Cycle revenue</span>
+          <span class="label">Template revenue</span>
           <strong id="cycleRevenue">-</strong>
         </div>
         <div>
-          <span class="label">Profit / cycle</span>
+          <span class="label">Template profit</span>
           <strong id="cycleProfit">-</strong>
         </div>
         <div>
@@ -47,20 +47,62 @@
     </section>
 
     <div class="workspace">
-      <section class="schematic-panel" aria-label="P3 schematic selection">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Build decision</p>
-            <h2>Pick the P3 schematic</h2>
+      <div class="main-column">
+        <section class="planner-panel" aria-label="Planet factory planner">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Deployment plan</p>
+              <h2>Plan planets and factory modules</h2>
+            </div>
+            <div class="planner-actions">
+              <button id="copyBuyListButton" class="ghost-button" type="button">Copy Buy List</button>
+              <button id="copySellListButton" class="ghost-button" type="button">Copy Sell List</button>
+              <button id="addPlanetButton" class="ghost-button" type="button">Add Planet</button>
+            </div>
           </div>
-          <select id="sortSelect" aria-label="Sort schematics">
-            <option value="profit">Sort by profit</option>
-            <option value="roi">Sort by ROI</option>
-            <option value="name">Sort by name</option>
-          </select>
-        </div>
-        <div id="recipeGrid" class="recipe-grid"></div>
-      </section>
+          <div id="plannerStatus" class="status good">Bill of materials uses Janice-friendly item and quantity lines.</div>
+          <div class="planner-totals">
+            <div>
+              <span class="label">Total investment</span>
+              <strong id="totalInvestment">-</strong>
+            </div>
+            <div>
+              <span class="label">Total revenue</span>
+              <strong id="totalRevenue">-</strong>
+            </div>
+            <div>
+              <span class="label">Total profit</span>
+              <strong id="totalProfit">-</strong>
+            </div>
+            <div>
+              <span class="label">Fleet ROI</span>
+              <strong id="totalRoi">-</strong>
+            </div>
+          </div>
+          <details class="planet-drawer" open>
+            <summary>
+              <span>Planet rows</span>
+              <span id="planetCount">1 planet</span>
+            </summary>
+            <div id="planetList" class="planet-list"></div>
+          </details>
+        </section>
+
+        <section class="schematic-panel" aria-label="P3 schematic selection">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Build decision</p>
+              <h2>Pick the P3 schematic</h2>
+            </div>
+            <select id="sortSelect" aria-label="Sort schematics">
+              <option value="profit">Sort by profit</option>
+              <option value="roi">Sort by ROI</option>
+              <option value="name">Sort by name</option>
+            </select>
+          </div>
+          <div id="recipeGrid" class="recipe-grid"></div>
+        </section>
+      </div>
 
       <aside class="inspector" aria-label="Factory details">
         <section class="panel-block">
@@ -71,6 +113,13 @@
             </div>
           </div>
           <div class="field-grid">
+            <label class="range-field">
+              Cycles per facility
+              <span class="range-control">
+                <input id="cycleCount" type="range" min="1" max="200" step="1" value="24" />
+                <input id="cycleCountNumber" type="number" min="1" max="200" step="1" value="24" aria-label="Cycles per facility" />
+              </span>
+            </label>
             <label>
               Buy P2 inputs from
               <select id="inputPriceSide">
@@ -115,6 +164,6 @@
     </div>
   </main>
 
-  <script type="module" src="./src/js/main.js?v=0.3.1"></script>
+  <script type="module" src="./src/js/main.js?v=0.5.0"></script>
 </body>
 </html>
