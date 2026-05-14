@@ -102,7 +102,8 @@ function depthPrice(price, side, quantity, overrideUnitPrice = null) {
     availableQuantity: 0,
     bestPrice: null,
     worstPrice: null,
-    isComplete: false
+    isComplete: false,
+    isOverride: false
   };
 
   if (Number.isFinite(overrideUnitPrice) && overrideUnitPrice >= 0) {
@@ -114,7 +115,8 @@ function depthPrice(price, side, quantity, overrideUnitPrice = null) {
       availableQuantity: quantity,
       bestPrice: overrideUnitPrice,
       worstPrice: overrideUnitPrice,
-      isComplete: true
+      isComplete: true,
+      isOverride: true
     };
   }
 

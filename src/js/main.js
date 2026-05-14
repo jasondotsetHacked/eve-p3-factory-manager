@@ -83,6 +83,7 @@ function bindEvents() {
   elements.addPlanetButton.addEventListener("click", () => {
     syncPlanetOpenStates();
     planets.unshift(defaultPlanet(`Planet ${planets.length + 1}`));
+    setActivePlanetDraft(planets[0].id);
     persistState();
     render();
   });
@@ -175,6 +176,7 @@ async function refreshPrices() {
 function render() {
   const selectedRecipe = recipeById(selectedRecipeId);
   const settings = currentSettings();
+  const selectedSettings = currentSelectedRecipeSettings(settings);
   const scoredRecipes = defaultRecipes
     .map((recipe) => ({ recipe, economics: evaluateRecipe(recipe, prices, settings) }))
     .sort(compareRecipes(elements.sortSelect.value));
@@ -184,7 +186,7 @@ function render() {
     elements.recipeGrid.append(renderRecipeCard(item.recipe, item.economics));
   }
 
-  renderSelectedRecipe(selectedRecipe, evaluateRecipe(selectedRecipe, prices, settings));
+  renderSelectedRecipe(selectedRecipe, evaluateRecipe(selectedRecipe, prices, selectedSettings));
   renderPlanetPlanner(settings);
 }
 
@@ -338,6 +340,17 @@ function currentSettings() {
   };
 }
 
+function currentSelectedRecipeSettings(settings) {
+  const activePlanet = planets[0];
+  if (!activePlanet || activePlanet.recipeId !== selectedRecipeId) return settings;
+  return {
+    ...settings,
+    inputAUnitPrice: activePlanet.inputAUnitPrice,
+    inputBUnitPrice: activePlanet.inputBUnitPrice,
+    outputUnitPrice: activePlanet.outputUnitPrice
+  };
+}
+
 function renderPlanetPlanner(settings) {
   syncPlanetOpenStates();
   const planetRows = planets.map((planet) => planetSummary(planet, settings));
@@ -399,6 +412,7 @@ function renderPlanetRow(row, isActiveDraft = false) {
   const status = economics.profit === null
     ? missingDepthText(economics)
     : `${formatNumber(totalCycles)} total factory cycles · ${sellThroughNote(economics)}`;
+  const overrideStatus = overrideSummaryText(planet);
   const recipeOptions = defaultRecipes.map((option) => (
     `<option value="${escapeHtml(option.id)}"${option.id === recipe.id ? " selected" : ""}>${escapeHtml(option.name)}</option>`
   )).join("");
@@ -470,7 +484,7 @@ function renderPlanetRow(row, isActiveDraft = false) {
           <strong>${formatIsk(p2Target)}</strong>
         </div>
       </div>
-      <div class="planet-note">${escapeHtml(recipe.inputAName)} + ${escapeHtml(recipe.inputBName)} · ${status}</div>
+      <div class="planet-note">${escapeHtml(recipe.inputAName)} + ${escapeHtml(recipe.inputBName)} · ${status}${overrideStatus ? ` · ${overrideStatus}` : ""}</div>
     </details>
   `;
 }
@@ -582,7 +596,7 @@ function defaultPlanet(name) {
     recipeId: selectedRecipeId,
     factories: activeFactoryCount(),
     cycles: currentCycleCount(),
-    isOpen: false,
+    isOpen: true,
     inputAUnitPrice: null,
     inputBUnitPrice: null,
     outputUnitPrice: null
@@ -608,7 +622,9 @@ function setActivePlanetDraft(planetId) {
   const [planet] = planets.splice(index, 1);
   planets.unshift(planet);
   selectedRecipeId = recipeById(planet.recipeId).id;
-  setCycleCount(clampInteger(planet.cycles, 1, 720));
+  const syncedCycles = clampInteger(planet.cycles, 1, 720);
+  planet.cycles = syncedCycles;
+  setCycleCount(syncedCycles);
   planet.isOpen = true;
   forceActivePlanetOpen = true;
   updateGeneratedTemplate();
@@ -624,10 +640,12 @@ function updatePlanetFromControl(control) {
     planet.name = control.value;
   } else if (control.matches("[data-planet-recipe]")) {
     planet.recipeId = recipeById(control.value).id;
+    syncActiveControlsFromPlanet(planet);
   } else if (control.matches("[data-planet-factories]")) {
     planet.factories = clampInteger(control.value, 1, 100);
   } else if (control.matches("[data-planet-cycles]")) {
     planet.cycles = clampInteger(control.value, 1, 10000);
+    syncActiveControlsFromPlanet(planet);
   } else if (control.matches("[data-planet-input-a-price]")) {
     planet.inputAUnitPrice = normalizeOverridePrice(control.value);
   } else if (control.matches("[data-planet-input-b-price]")) {
@@ -635,6 +653,15 @@ function updatePlanetFromControl(control) {
   } else if (control.matches("[data-planet-output-price]")) {
     planet.outputUnitPrice = normalizeOverridePrice(control.value);
   }
+}
+
+function syncActiveControlsFromPlanet(planet) {
+  if (planet !== planets[0]) return;
+  selectedRecipeId = recipeById(planet.recipeId).id;
+  const syncedCycles = clampInteger(planet.cycles, 1, 720);
+  planet.cycles = syncedCycles;
+  setCycleCount(syncedCycles);
+  updateGeneratedTemplate();
 }
 
 function createId() {
@@ -733,6 +760,7 @@ function clampInteger(value, min, max) {
 
 function depthNote(depth) {
   if (!depth) return "No market depth loaded.";
+  if (depth.isOverride) return "Manual deal price.";
   if (!depth.isComplete) {
     return `Only ${formatNumber(depth.filledQuantity)} of ${formatNumber(depth.requestedQuantity)} units visible.`;
   }
@@ -740,6 +768,16 @@ function depthNote(depth) {
     return `Filled at ${formatIsk(depth.bestPrice)}.`;
   }
   return `Best ${formatIsk(depth.bestPrice)} · worst ${formatIsk(depth.worstPrice)}.`;
+}
+
+function overrideSummaryText(planet) {
+  const count = [
+    planet.inputAUnitPrice,
+    planet.inputBUnitPrice,
+    planet.outputUnitPrice
+  ].filter(Number.isFinite).length;
+  if (!count) return "";
+  return `${count} manual ${count === 1 ? "price" : "prices"} active`;
 }
 
 function sellThroughNote(economics) {
