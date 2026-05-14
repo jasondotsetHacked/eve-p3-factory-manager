@@ -58,9 +58,7 @@ let generatedTemplate = "";
 let copyButtonResetTimer = null;
 let expandedRecipeId = null;
 let expandedRecipePlacement = "start";
-let activePlanetId = savedState.activePlanetId && planets.some((planet) => planet.id === savedState.activePlanetId)
-  ? savedState.activePlanetId
-  : planets[0]?.id;
+let activePlanetId = null;
 
 elements.inputPriceSide.value = savedState.inputSide ?? "sell";
 elements.outputPriceSide.value = savedState.outputSide ?? "buy";
@@ -103,7 +101,11 @@ function bindEvents() {
       const card = editButton.closest("[data-planet-id]");
       const planetId = card?.dataset.planetId;
       if (!planetId) return;
-      setActivePlanetDraft(planetId);
+      if (planetId === activePlanetId) {
+        clearActivePlanetDraft();
+      } else {
+        setActivePlanetDraft(planetId);
+      }
       persistState();
       render();
       return;
@@ -119,7 +121,7 @@ function bindEvents() {
       planets.push(defaultPlanet("Planet 1"));
     }
     if (!planets.some((planet) => planet.id === activePlanetId)) {
-      setActivePlanetDraft(planets[0].id);
+      clearActivePlanetDraft();
     }
     persistState();
     render();
@@ -445,6 +447,7 @@ function renderPlanetRow(row, isActiveDraft = false) {
   const recipeOptions = defaultRecipes.map((option) => (
     `<option value="${escapeHtml(option.id)}"${option.id === recipe.id ? " selected" : ""}>${escapeHtml(option.name)}</option>`
   )).join("");
+  const editButtonText = isActiveDraft ? "Stop Editing" : "Edit";
 
   return `
     <details class="planet-card${isActiveDraft ? " active-draft" : ""}" data-planet-id="${escapeHtml(planet.id)}"${planet.isOpen ? " open" : ""}>
@@ -454,7 +457,7 @@ function renderPlanetRow(row, isActiveDraft = false) {
           <span>${escapeHtml(recipe.name)} · ${formatNumber(factories)} facilities · ${formatNumber(cyclesPerFactory)} cycles</span>
         </span>
         <span class="planet-summary-actions">
-          <button class="ghost-button" data-edit-planet type="button">Edit</button>
+          <button class="ghost-button" data-edit-planet type="button" aria-pressed="${isActiveDraft ? "true" : "false"}">${editButtonText}</button>
           <button class="ghost-button" data-remove-planet type="button"${planets.length <= 1 ? " disabled" : ""}>Remove</button>
         </span>
       </summary>
@@ -655,8 +658,12 @@ function setActivePlanetDraft(planetId) {
   updateGeneratedTemplate();
 }
 
+function clearActivePlanetDraft() {
+  activePlanetId = null;
+}
+
 function activePlanetDraft() {
-  return planets.find((planet) => planet.id === activePlanetId) ?? planets[0];
+  return planets.find((planet) => planet.id === activePlanetId) ?? null;
 }
 
 function updatePlanetFromControl(control) {
