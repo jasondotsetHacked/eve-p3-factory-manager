@@ -8,8 +8,10 @@ import {
 import {
   evaluateRecipe,
   fetchJitaPrices,
+  fetchMarketHistory,
   MARKET,
-  uniqueMarketTypeIds
+  uniqueMarketTypeIds,
+  uniqueOutputTypeIds
 } from "./economics.js";
 
 const storageKey = "evePiP3FactoryManagerV2";
@@ -53,6 +55,7 @@ let template = sampleTemplate;
 let routeGroups = detectRouteGroups(template);
 let selectedRecipeId = savedState.selectedRecipeId ?? "robotics";
 let prices = savedState.prices ?? {};
+let marketHistory = savedState.marketHistory ?? {};
 let planets = normalizePlanets(savedState.planets);
 let generatedTemplate = "";
 let copyButtonResetTimer = null;
@@ -175,6 +178,7 @@ function bindEvents() {
 
 async function refreshPrices() {
   const typeIds = uniqueMarketTypeIds(defaultRecipes);
+  const outputTypeIds = uniqueOutputTypeIds(defaultRecipes);
   elements.refreshPricesButton.disabled = true;
   setStatus(elements.marketStatus, "warn", `Fetching ${typeIds.length} market types from ${MARKET.stationName}...`);
 
@@ -182,10 +186,15 @@ async function refreshPrices() {
     setStatus(elements.marketStatus, "warn", `Fetched ${done} of ${total} market types from Jita.`);
   });
 
+  setStatus(elements.marketStatus, "warn", `Fetching 30-day volume for ${outputTypeIds.length} P3 outputs from The Forge...`);
+  marketHistory = await fetchMarketHistory(outputTypeIds, (done, total) => {
+    setStatus(elements.marketStatus, "warn", `Fetched ${done} of ${total} P3 output volume histories.`);
+  });
+
   elements.refreshPricesButton.disabled = false;
   persistState();
   const fetchedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  setStatus(elements.marketStatus, "good", `Jita prices refreshed at ${fetchedAt}.`);
+  setStatus(elements.marketStatus, "good", `Jita prices and The Forge volume refreshed at ${fetchedAt}.`);
   render();
 }
 
@@ -199,15 +208,21 @@ function render() {
 
   elements.recipeGrid.innerHTML = "";
   for (const item of scoredRecipes) {
-    elements.recipeGrid.append(renderRecipeCard(item.recipe, item.economics));
+    elements.recipeGrid.append(renderRecipeCard(item.recipe, item.economics, marketHistory[item.recipe.outputTypeId]));
   }
 
   renderSelectedRecipe(selectedRecipe, evaluateRecipe(selectedRecipe, prices, selectedSettings));
   renderPlanetPlanner(settings);
 }
 
-function renderRecipeCard(recipe, economics) {
+function renderRecipeCard(recipe, economics, volume) {
   const button = document.createElement("button");
+  const isHighVolume = volume?.days >= 30 && volume.averageDailyVolume >= 30000;
+  const volumeClass = isHighVolume ? "high" : "";
+  const volumeText = volume?.days ? formatVolumeThousands(volume.averageDailyVolume) : "-";
+  const volumeTitle = volume?.days
+    ? `${formatNumber(volume.averageDailyVolume)} average units per day over ${volume.days} market-history days in The Forge`
+    : "Refresh prices to load 30-day output volume.";
   button.type = "button";
   button.className = [
     "recipe-card",
@@ -237,12 +252,20 @@ function renderRecipeCard(recipe, economics) {
         <span class="label">ROI</span>
         <strong class="${valueClass(economics.roi)}">${formatPercent(economics.roi)}</strong>
       </div>
-    </div>
-    <div class="recipe-popover" role="tooltip">
-      <div class="recipe-popover-heading">
-        <strong>${escapeHtml(recipe.name)}</strong>
-        <span>${escapeHtml(recipe.inputAName)} + ${escapeHtml(recipe.inputBName)}</span>
+      <div class="recipe-volume ${volumeClass}" title="${escapeHtml(volumeTitle)}">
+        <span class="label">30DV</span>
+        <strong>${volumeText}</strong>
       </div>
+    </div>
+      <div class="recipe-popover" role="tooltip">
+        <div class="recipe-popover-heading">
+          <strong class="copy-material" data-copy-material="${escapeHtml(recipe.name)}" role="button" tabindex="0" title="Copy ${escapeHtml(recipe.name)}">${escapeHtml(recipe.name)}</strong>
+          <span>
+            <span class="copy-material" data-copy-material="${escapeHtml(recipe.inputAName)}" role="button" tabindex="0" title="Copy ${escapeHtml(recipe.inputAName)}">${escapeHtml(recipe.inputAName)}</span>
+            +
+            <span class="copy-material" data-copy-material="${escapeHtml(recipe.inputBName)}" role="button" tabindex="0" title="Copy ${escapeHtml(recipe.inputBName)}">${escapeHtml(recipe.inputBName)}</span>
+          </span>
+        </div>
       <div class="recipe-economics">
         <div>
           <span class="label">Profit</span>
@@ -252,16 +275,37 @@ function renderRecipeCard(recipe, economics) {
           <span class="label">ROI</span>
           <strong class="${valueClass(economics.roi)}">${formatPercent(economics.roi)}</strong>
         </div>
+        <div class="recipe-volume ${volumeClass}" title="${escapeHtml(volumeTitle)}">
+          <span class="label">30DV</span>
+          <strong>${volumeText}</strong>
+        </div>
       </div>
       <div class="recipe-price-note">${priceNote(economics)}</div>
     </div>
   `;
 
   button.querySelector(".recipe-popover").addEventListener("click", (event) => {
+    const copyTarget = event.target.closest("[data-copy-material]");
+    if (copyTarget) {
+      event.preventDefault();
+      event.stopPropagation();
+      copyMaterialName(copyTarget.dataset.copyMaterial);
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
     expandedRecipeId = null;
     render();
+  });
+
+  button.querySelector(".recipe-popover").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const copyTarget = event.target.closest("[data-copy-material]");
+    if (!copyTarget) return;
+    event.preventDefault();
+    event.stopPropagation();
+    copyMaterialName(copyTarget.dataset.copyMaterial);
   });
 
   return button;
@@ -454,7 +498,7 @@ function renderPlanetRow(row, isActiveDraft = false) {
       <summary class="planet-summary">
         <span>
           <strong>${escapeHtml(planet.name)}${isActiveDraft ? ' <em>Editing</em>' : ""}</strong>
-          <span>${escapeHtml(recipe.name)} · ${formatNumber(factories)} facilities · ${formatNumber(cyclesPerFactory)} cycles</span>
+          <span>${escapeHtml(recipe.inputAName)} + ${escapeHtml(recipe.inputBName)} -> ${escapeHtml(recipe.name)} · ${formatNumber(factories)} facilities · ${formatNumber(cyclesPerFactory)} cycles</span>
         </span>
         <span class="planet-summary-actions">
           <button class="ghost-button" data-edit-planet type="button" aria-pressed="${isActiveDraft ? "true" : "false"}">${editButtonText}</button>
@@ -589,7 +633,8 @@ function persistState() {
     cycles: currentCycleCount(),
     activePlanetId,
     planets,
-    prices
+    prices,
+    marketHistory
   };
 
   try {
@@ -713,6 +758,17 @@ function setStatus(element, type, text) {
   element.textContent = text;
 }
 
+async function copyMaterialName(name) {
+  if (!name) return;
+  try {
+    await navigator.clipboard.writeText(name);
+    setStatus(elements.marketStatus, "good", `${name} copied to clipboard.`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not copy material name.";
+    setStatus(elements.marketStatus, "bad", message);
+  }
+}
+
 function priceNote(economics) {
   if (economics.profit === null) {
     return missingDepthText(economics);
@@ -735,6 +791,13 @@ function formatIsk(value) {
 function formatNumber(value) {
   if (!Number.isFinite(value)) return "-";
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatVolumeThousands(value) {
+  if (!Number.isFinite(value)) return "-";
+  return `${new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: value >= 100000 ? 0 : 1
+  }).format(value / 1000)}k`;
 }
 
 function formatPercent(value) {
@@ -830,6 +893,7 @@ function depthNote(depth) {
   if (!depth.isComplete) {
     return `Only ${formatNumber(depth.filledQuantity)} of ${formatNumber(depth.requestedQuantity)} units visible.`;
   }
+  if (depth.isSplit) return "Split between weighted buy and sell depth.";
   if (depth.bestPrice === depth.worstPrice) {
     return `Filled at ${formatIsk(depth.bestPrice)}.`;
   }

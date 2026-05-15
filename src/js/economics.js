@@ -12,6 +12,10 @@ export function uniqueMarketTypeIds(recipes) {
   ]))].sort((a, b) => a - b);
 }
 
+export function uniqueOutputTypeIds(recipes) {
+  return [...new Set(recipes.map((recipe) => recipe.outputTypeId))].sort((a, b) => a - b);
+}
+
 export async function fetchJitaPrices(typeIds, onProgress = () => {}) {
   const prices = {};
 
@@ -22,6 +26,18 @@ export async function fetchJitaPrices(typeIds, onProgress = () => {}) {
   }
 
   return prices;
+}
+
+export async function fetchMarketHistory(typeIds, onProgress = () => {}) {
+  const history = {};
+
+  for (let index = 0; index < typeIds.length; index += 1) {
+    const typeId = typeIds[index];
+    history[typeId] = summarizeMarketHistory(await fetchMarketHistoryForType(typeId));
+    onProgress(index + 1, typeIds.length);
+  }
+
+  return history;
 }
 
 export function evaluateRecipe(recipe, prices, settings) {
@@ -93,6 +109,29 @@ async function fetchJitaPrice(typeId) {
   };
 }
 
+async function fetchMarketHistoryForType(typeId) {
+  const url = new URL(`https://esi.evetech.net/latest/markets/${MARKET.regionId}/history/`);
+  url.searchParams.set("datasource", "tranquility");
+  url.searchParams.set("type_id", String(typeId));
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`ESI market history request failed for type ${typeId} (${response.status}).`);
+  }
+
+  return response.json();
+}
+
+function summarizeMarketHistory(rows) {
+  const recentRows = Array.isArray(rows) ? rows.slice(-30) : [];
+  const totalVolume = recentRows.reduce((total, row) => total + (Number(row.volume) || 0), 0);
+  return {
+    averageDailyVolume: recentRows.length ? totalVolume / recentRows.length : null,
+    days: recentRows.length,
+    fetchedAt: new Date().toISOString()
+  };
+}
+
 function depthPrice(price, side, quantity, overrideUnitPrice = null) {
   const emptyResult = {
     averagePrice: null,
@@ -103,7 +142,8 @@ function depthPrice(price, side, quantity, overrideUnitPrice = null) {
     bestPrice: null,
     worstPrice: null,
     isComplete: false,
-    isOverride: false
+    isOverride: false,
+    isSplit: false
   };
 
   if (Number.isFinite(overrideUnitPrice) && overrideUnitPrice >= 0) {
@@ -116,7 +156,8 @@ function depthPrice(price, side, quantity, overrideUnitPrice = null) {
       bestPrice: overrideUnitPrice,
       worstPrice: overrideUnitPrice,
       isComplete: true,
-      isOverride: true
+      isOverride: true,
+      isSplit: false
     };
   }
 
@@ -124,6 +165,38 @@ function depthPrice(price, side, quantity, overrideUnitPrice = null) {
     return emptyResult;
   }
 
+  if (side === "split") {
+    return splitDepthPrice(price, quantity, emptyResult);
+  }
+
+  return orderDepthPrice(price, side, quantity, emptyResult);
+}
+
+function splitDepthPrice(price, quantity, emptyResult) {
+  const buyDepth = orderDepthPrice(price, "buy", quantity, emptyResult);
+  const sellDepth = orderDepthPrice(price, "sell", quantity, emptyResult);
+  const isComplete = buyDepth.isComplete && sellDepth.isComplete;
+  const averagePrice = isComplete ? (buyDepth.averagePrice + sellDepth.averagePrice) / 2 : null;
+
+  return {
+    averagePrice,
+    totalValue: isComplete ? averagePrice * quantity : null,
+    requestedQuantity: quantity,
+    filledQuantity: Math.min(buyDepth.filledQuantity, sellDepth.filledQuantity),
+    availableQuantity: Math.min(buyDepth.availableQuantity, sellDepth.availableQuantity),
+    bestPrice: Number.isFinite(buyDepth.bestPrice) && Number.isFinite(sellDepth.bestPrice)
+      ? (buyDepth.bestPrice + sellDepth.bestPrice) / 2
+      : null,
+    worstPrice: Number.isFinite(buyDepth.worstPrice) && Number.isFinite(sellDepth.worstPrice)
+      ? (buyDepth.worstPrice + sellDepth.worstPrice) / 2
+      : null,
+    isComplete,
+    isOverride: false,
+    isSplit: true
+  };
+}
+
+function orderDepthPrice(price, side, quantity, emptyResult) {
   const orders = side === "buy" ? price.buyOrders : price.sellOrders;
   if (!Array.isArray(orders) || !orders.length) {
     return {
@@ -158,7 +231,9 @@ function depthPrice(price, side, quantity, overrideUnitPrice = null) {
     availableQuantity,
     bestPrice: orders[0]?.price ?? null,
     worstPrice,
-    isComplete
+    isComplete,
+    isOverride: false,
+    isSplit: false
   };
 }
 

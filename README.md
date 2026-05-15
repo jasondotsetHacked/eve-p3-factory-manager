@@ -9,8 +9,9 @@ The app is static HTML, CSS, and JavaScript. There is no build step, backend ser
 - Lists the P3 factory recipes included in `src/data/recipes.js`.
 - Fetches public market orders from CCP ESI for The Forge and filters them to Jita 4-4.
 - Calculates input cost, output revenue, profit, and ROI for a selected number of cycles per Advanced Industry Facility.
-- Lets you choose whether to value inputs at lowest sell or highest buy, and outputs at highest buy or lowest sell.
+- Lets you choose whether to value inputs and outputs at buy, sell, or split prices.
 - Uses visible Jita order depth to calculate weighted average prices for the required input and output quantities.
+- Marks P3 schematics with 30-day average output volume and highlights outputs at or above 30,000 units per day.
 - Shows buy-order demand coverage for P3 outputs so profitable sell-side pricing can be checked against actual buyer volume.
 - Tracks multiple planets with separate schematics, factory module counts, and cycles per facility.
 - Aggregates total input investment, output revenue, profit, and ROI across all configured planets.
@@ -65,7 +66,9 @@ For example, 24 cycles per facility on the bundled 16-facility shell prices 3,84
 
 If the top order cannot fill the whole amount, the app includes the next best orders and shows the weighted average price. If there is not enough visible order depth, that schematic is treated as unavailable for the selected run size.
 
-Output demand is also shown separately from output valuation. If you value output at lowest sell order, the profit number reflects listed sell prices, but the sell-through note still checks Jita buy-order depth for the output quantity. That helps identify products that look profitable on paper but may not have enough immediate buyer volume.
+Split price uses the midpoint between the weighted buy-order depth and weighted sell-order depth for the requested quantity. Output demand is also shown separately from output valuation. If you value output at lowest sell order or split price, the profit number reflects that selected valuation, but the sell-through note still checks Jita buy-order depth for the output quantity. That helps identify products that look profitable on paper but may not have enough immediate buyer volume.
+
+The schematic cards also show the P3 output's 30-day average daily market-history volume in The Forge. Outputs averaging at least 30,000 units per day across the full 30-day window use green volume text.
 
 The planet planner applies the same depth logic to each planet's total factory cycles:
 

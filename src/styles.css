@@ -310,14 +310,14 @@ label {
 
 .recipe-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 6px;
   overflow: visible;
 }
 
 .recipe-card {
   position: relative;
-  min-height: 76px;
+  min-height: 78px;
   border: 1px solid var(--line);
   border-radius: 5px;
   background: linear-gradient(180deg, #0d171d, #091116);
@@ -345,7 +345,7 @@ label {
 
 .recipe-card-main {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px 8px;
   align-items: end;
 }
@@ -379,6 +379,20 @@ label {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.78rem;
+}
+
+.recipe-volume {
+  display: grid;
+  align-content: end;
+  gap: 2px;
+}
+
+.recipe-volume strong {
+  color: var(--muted);
+}
+
+.recipe-volume.high strong {
+  color: var(--good);
 }
 
 .recipe-popover {
@@ -416,9 +430,26 @@ label {
   font-weight: 700;
 }
 
+.copy-material {
+  width: max-content;
+  max-width: 100%;
+  border-bottom: 1px dotted currentColor;
+  cursor: copy;
+  outline: none;
+}
+
+.recipe-popover-heading .copy-material {
+  color: var(--accent);
+}
+
+.copy-material:hover,
+.copy-material:focus-visible {
+  color: var(--text);
+}
+
 .recipe-economics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
 }
 
@@ -1024,7 +1055,7 @@ label {
   }
 
   .recipe-grid {
-    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 
   .recipe-card-main strong {
