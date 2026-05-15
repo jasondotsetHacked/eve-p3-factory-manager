@@ -793,20 +793,78 @@ label {
   align-items: center;
 }
 
+.price-line.manual-override {
+  border-color: rgba(255, 209, 102, 0.78);
+  background: linear-gradient(180deg, rgba(255, 209, 102, 0.14), rgba(3, 8, 11, 0.94));
+}
+
 .price-line-main {
   min-width: 0;
 }
 
 .price-line-main strong,
-.price-line > strong {
+.price-line-price > strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.price-line > strong {
+.price-line-price {
+  min-width: 150px;
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+
+.market-bar.expanded .price-line-price {
+  min-width: min(100%, 360px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.price-line-price > strong {
   font-size: 0.92rem;
+  flex: 0 1 auto;
   text-align: right;
+}
+
+.override-toggle,
+.price-line-price input[data-price-override] {
+  display: none;
+}
+
+.market-bar.expanded .override-toggle,
+.market-bar.expanded .price-line-price input[data-price-override] {
+  display: flex;
+}
+
+.market-bar.expanded .price-line-price input[data-price-override] {
+  display: block;
+  width: 112px;
+  min-height: 32px;
+  padding: 6px 8px;
+  text-align: right;
+}
+
+.override-toggle {
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.override-toggle input {
+  width: auto;
+  min-height: auto;
+}
+
+.price-line.manual-override .price-line-price input[data-price-override] {
+  border-color: rgba(255, 209, 102, 0.8);
 }
 
 .price-line-detail {

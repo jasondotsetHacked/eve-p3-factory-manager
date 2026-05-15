@@ -56,6 +56,7 @@ let routeGroups = detectRouteGroups(template);
 let selectedRecipeId = savedState.selectedRecipeId ?? "robotics";
 let prices = savedState.prices ?? {};
 let marketHistory = savedState.marketHistory ?? {};
+let recipeOverrides = normalizeRecipeOverrides(savedState.recipeOverrides);
 let planets = normalizePlanets(savedState.planets);
 let generatedTemplate = "";
 let copyButtonResetTimer = null;
@@ -84,7 +85,7 @@ function bindEvents() {
     toggleMarketDetails();
   });
   elements.marketBar.addEventListener("click", (event) => {
-    if (event.target.closest("button, input, select")) return;
+    if (event.target.closest("button, input, select, label")) return;
     toggleMarketDetails();
   });
   elements.addPlanetButton.addEventListener("click", () => {
@@ -145,6 +146,21 @@ function bindEvents() {
     updatePlanetFromControl(event.target);
     persistState();
     render();
+  });
+  elements.priceLines.addEventListener("input", (event) => {
+    if (!event.target.matches("[data-price-override]")) return;
+    const focusState = priceOverrideFocusState(event.target);
+    updateSelectedPriceOverride(event.target);
+    persistState();
+    render();
+    restorePriceOverrideFocus(focusState);
+  });
+  elements.priceLines.addEventListener("change", (event) => {
+    const focusState = priceOverrideFocusState(event.target);
+    updateSelectedPriceOverride(event.target);
+    persistState();
+    render();
+    restorePriceOverrideFocus(focusState);
   });
   elements.inputPriceSide.addEventListener("change", () => {
     persistState();
@@ -322,6 +338,8 @@ function recipePopoverPlacement(card) {
 function renderSelectedRecipe(recipe, economics) {
   const facilities = activeFactoryCount();
   const cyclesPerFacility = currentCycleCount();
+  const overrides = currentSelectedPriceOverrides();
+  const marketEconomics = evaluateRecipe(recipe, prices, currentSettings());
   elements.selectedRecipeName.textContent = recipe.name;
   elements.selectedRecipeInputs.textContent = `${recipe.inputAName} + ${recipe.inputBName} for ${formatNumber(facilities)} facilities x ${formatNumber(cyclesPerFacility)} cycles`;
   elements.cycleCost.textContent = formatIsk(economics.cost);
@@ -333,30 +351,46 @@ function renderSelectedRecipe(recipe, economics) {
 
   elements.priceLines.innerHTML = [
     {
+      key: "inputA",
       name: recipe.inputAName,
       role: `${formatNumber(economics.inputQuantity)} units input`,
-      depth: economics.inputA
+      depth: economics.inputA,
+      marketDepth: marketEconomics.inputA,
+      overrideValue: overrides.inputAUnitPrice
     },
     {
+      key: "inputB",
       name: recipe.inputBName,
       role: `${formatNumber(economics.inputQuantity)} units input`,
-      depth: economics.inputB
+      depth: economics.inputB,
+      marketDepth: marketEconomics.inputB,
+      overrideValue: overrides.inputBUnitPrice
     },
     {
+      key: "output",
       name: recipe.name,
       role: `${formatNumber(economics.outputQuantity)} units output`,
       depth: economics.output,
+      marketDepth: marketEconomics.output,
+      overrideValue: overrides.outputUnitPrice,
       extraNote: sellThroughNote(economics)
     }
   ].map((line) => `
-    <div class="price-line">
+    <div class="price-line${Number.isFinite(line.overrideValue) ? " manual-override" : ""}">
       <div class="price-line-main">
         <strong>${escapeHtml(line.name)}</strong>
       </div>
-      <strong>${formatIsk(line.depth.averagePrice)}</strong>
+      <div class="price-line-price">
+        <strong>${formatIsk(Number.isFinite(line.overrideValue) ? line.depth.averagePrice : line.marketDepth.averagePrice)}</strong>
+        <label class="override-toggle">
+          <input data-price-override-toggle="${line.key}" type="checkbox"${Number.isFinite(line.overrideValue) ? " checked" : ""} />
+          Override
+        </label>
+        <input data-price-override="${line.key}" type="text" inputmode="decimal" value="${formatOverrideValue(line.overrideValue)}" placeholder="ISK price"${Number.isFinite(line.overrideValue) ? "" : " disabled"} />
+      </div>
       <div class="price-line-detail">
         <span>${line.role}</span>
-        <span>${depthNote(line.depth)}</span>
+        <span>${Number.isFinite(line.overrideValue) ? `Manual override at ${formatIsk(line.overrideValue)}.` : depthNote(line.marketDepth)}</span>
         ${line.extraNote ? `<span class="${sellThroughClass(economics)}">${line.extraNote}</span>` : ""}
       </div>
     </div>
@@ -418,14 +452,21 @@ function currentSettings() {
 }
 
 function currentSelectedRecipeSettings(settings) {
-  const activePlanet = activePlanetDraft();
-  if (!activePlanet || activePlanet.recipeId !== selectedRecipeId) return settings;
+  const overrides = currentSelectedPriceOverrides();
   return {
     ...settings,
-    inputAUnitPrice: activePlanet.inputAUnitPrice,
-    inputBUnitPrice: activePlanet.inputBUnitPrice,
-    outputUnitPrice: activePlanet.outputUnitPrice
+    inputAUnitPrice: overrides.inputAUnitPrice,
+    inputBUnitPrice: overrides.inputBUnitPrice,
+    outputUnitPrice: overrides.outputUnitPrice
   };
+}
+
+function currentSelectedPriceOverrides() {
+  const activePlanet = activePlanetDraft();
+  if (activePlanet && activePlanet.recipeId === selectedRecipeId) {
+    return activePlanet;
+  }
+  return recipeOverrides[selectedRecipeId] ?? emptyPriceOverrides();
 }
 
 function renderPlanetPlanner(settings) {
@@ -634,7 +675,8 @@ function persistState() {
     activePlanetId,
     planets,
     prices,
-    marketHistory
+    marketHistory,
+    recipeOverrides
   };
 
   try {
@@ -667,6 +709,18 @@ function normalizePlanets(value) {
   }));
 }
 
+function normalizeRecipeOverrides(value) {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(Object.entries(value).map(([recipeId, overrides]) => ([
+    recipeById(recipeId).id,
+    {
+      inputAUnitPrice: normalizeOverridePrice(overrides?.inputAUnitPrice),
+      inputBUnitPrice: normalizeOverridePrice(overrides?.inputBUnitPrice),
+      outputUnitPrice: normalizeOverridePrice(overrides?.outputUnitPrice)
+    }
+  ])));
+}
+
 function defaultPlanet(name) {
   return {
     id: createId(),
@@ -675,6 +729,14 @@ function defaultPlanet(name) {
     factories: activeFactoryCount(),
     cycles: currentCycleCount(),
     isOpen: false,
+    inputAUnitPrice: null,
+    inputBUnitPrice: null,
+    outputUnitPrice: null
+  };
+}
+
+function emptyPriceOverrides() {
+  return {
     inputAUnitPrice: null,
     inputBUnitPrice: null,
     outputUnitPrice: null
@@ -734,6 +796,91 @@ function updatePlanetFromControl(control) {
   } else if (control.matches("[data-planet-output-price]")) {
     planet.outputUnitPrice = normalizeOverridePrice(control.value);
   }
+}
+
+function updateSelectedPriceOverride(control) {
+  const toggleKey = control.dataset.priceOverrideToggle;
+  const inputKey = control.dataset.priceOverride;
+  const key = toggleKey || inputKey;
+  if (!key) return;
+
+  const field = overrideFieldForKey(key);
+  if (!field) return;
+
+  const target = selectedPriceOverrideTarget();
+  if (!target) return;
+
+  if (toggleKey) {
+    target[field] = control.checked
+      ? fallbackOverrideValue(key) ?? 0
+      : null;
+    return;
+  }
+
+  target[field] = normalizeOverridePrice(control.value);
+}
+
+function priceOverrideFocusState(control) {
+  if (!control?.dataset) return null;
+  const key = control.dataset.priceOverride || control.dataset.priceOverrideToggle;
+  if (!key) return null;
+  return {
+    key,
+    isInput: Boolean(control.dataset.priceOverride),
+    selectionStart: control.selectionStart,
+    selectionEnd: control.selectionEnd
+  };
+}
+
+function restorePriceOverrideFocus(focusState) {
+  if (!focusState?.key) return;
+  const selector = focusState.isInput
+    ? `[data-price-override="${focusState.key}"]`
+    : `[data-price-override-toggle="${focusState.key}"]`;
+  const nextControl = elements.priceLines.querySelector(selector);
+  if (!nextControl) return;
+
+  nextControl.focus();
+  if (focusState.isInput) {
+    try {
+      nextControl.setSelectionRange(focusState.selectionStart, focusState.selectionEnd);
+    } catch {
+      // Some browser/input combinations do not expose selection ranges.
+    }
+  }
+}
+
+function selectedPriceOverrideTarget() {
+  const activePlanet = activePlanetDraft();
+  if (activePlanet && activePlanet.recipeId === selectedRecipeId) {
+    return activePlanet;
+  }
+
+  recipeOverrides[selectedRecipeId] = {
+    ...emptyPriceOverrides(),
+    ...(recipeOverrides[selectedRecipeId] ?? {})
+  };
+  return recipeOverrides[selectedRecipeId];
+}
+
+function overrideFieldForKey(key) {
+  return {
+    inputA: "inputAUnitPrice",
+    inputB: "inputBUnitPrice",
+    output: "outputUnitPrice"
+  }[key] ?? null;
+}
+
+function fallbackOverrideValue(key) {
+  const recipe = recipeById(selectedRecipeId);
+  const settings = currentSettings();
+  const economics = evaluateRecipe(recipe, prices, settings);
+  const depth = {
+    inputA: economics.inputA,
+    inputB: economics.inputB,
+    output: economics.output
+  }[key];
+  return normalizeOverridePrice(depth?.averagePrice);
 }
 
 function syncActiveControlsFromPlanet(planet) {
